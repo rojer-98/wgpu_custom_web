@@ -1,0 +1,20 @@
+[package]
+name = "custom-engine-models"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Helpers
+derive_more = "0.99.17"
+derivative = "2.2.0"
+
+# Log 
+log = "0.4.20"
+
+# Files 
+tobj = "4.0.0"
+
+# Error
+anyhow = "1.0.79"

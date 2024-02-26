@@ -1,0 +1,66 @@
+mod chain;
+mod context_impls;
+mod inner;
+
+use crate::{
+    buffer::Buffer, context::Context, errors::CoreError, runtime::RuntimeKind,
+    texture::RenderTexture,
+};
+
+#[derive(Debug)]
+pub enum View {
+    Surface(wgpu::SurfaceTexture),
+    Texture(RenderTexture, Buffer),
+}
+
+impl View {
+    fn texture_view(&self) -> wgpu::TextureView {
+        match self {
+            View::Surface(s) => s.texture.create_view(&Default::default()),
+            View::Texture(t, _) => t.create_view(&Default::default()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Worker<'a> {
+    pub(crate) device: &'a wgpu::Device,
+    pub(crate) queue: &'a wgpu::Queue,
+
+    pub(crate) runtime_kind: RuntimeKind<'a>,
+    pub(crate) context: Context,
+
+    format: wgpu::TextureFormat,
+    size: (u32, u32),
+    scale_factor: f64,
+
+    view: Option<View>,
+}
+
+impl<'a> Worker<'a> {
+    pub(crate) fn new(
+        size: (u32, u32),
+        scale_factor: f64,
+        runtime_kind: RuntimeKind<'a>,
+        device: &'a wgpu::Device,
+        queue: &'a wgpu::Queue,
+        view: Option<View>,
+        context: Context,
+    ) -> Result<Self, CoreError> {
+        let format = match runtime_kind {
+            RuntimeKind::Winit(_) => wgpu::TextureFormat::Bgra8UnormSrgb,
+            RuntimeKind::Texture(_, _) => wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+
+        Ok(Self {
+            size,
+            scale_factor,
+            runtime_kind,
+            format,
+            device,
+            queue,
+            view,
+            context,
+        })
+    }
+}
