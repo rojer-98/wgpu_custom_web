@@ -1,0 +1,34 @@
+mod config;
+mod errors;
+mod files;
+mod runner;
+mod workers;
+
+use runner::EngineRunner;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+const CONFIG_PATH: &'static str = "assets/config.toml";
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run() {
+    EngineRunner::new(CONFIG_PATH)
+        .expect("Init conifg error: ")
+        .logger()
+        .expect("Init logger error: ")
+        .run()
+        .expect("Render loop error: ");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn run(config: String) {
+    EngineRunner::new(config)
+        .expect("Init conifg error: ")
+        .logger()
+        .expect("Init logger error: ")
+        .run()
+        .expect("Render loop error: ");
+}

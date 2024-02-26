@@ -1,0 +1,85 @@
+default: (run-release)
+
+alias es := example-simple
+alias ec := example-custom
+alias ett := example-to-texture
+alias et := example-texture
+alias em := example-model
+
+alias bw := build-web
+alias bd := build-debug
+alias br := build-release
+
+alias rd := run-debug
+alias rr := run-release
+
+alias fx := fix
+alias f := fmt
+alias cpf := clippy-fix
+alias cl := clean
+alias ck := check
+
+out_dir_wasm := "../src/connectors/raw"
+out_dir_assets := "../public"
+
+# Build
+build-web:
+  @echo '[JUST] Web build with `wasm-pack`: '
+  -mkdir {{out_dir_wasm}}
+  wasm-pack build --target web --release --out-dir {{out_dir_wasm}} --out-name index
+  -cp -R ./assets {{out_dir_assets}}
+build-debug:
+  @echo '[JUST] Debug build with `cargo`: '
+  cargo build  
+build-release:
+  @echo '[JUST] Release build with `cargo`: '
+  cargo build --release 
+
+# Run
+run-debug: build-debug
+  @echo '[JUST] Run debug with cargo: '
+  cargo run 
+run-release: build-release
+  @echo '[JUST] Run release with cargo: '
+  cargo run --release 
+
+# Cargo utils
+fix:  
+  @echo '[JUST] Format with cargo: '
+  cargo fix --allow-dirty
+fmt:
+  @echo '[JUST] Format with cargo: '
+  cargo fmt --all
+clippy-fix: fix
+  @echo '[JUST] Call cargo clippy fix: '
+  cargo clippy --fix --allow-dirty
+  just fix
+  just fmt
+clean:
+  @echo '[JUST] Call cargo clean: '
+  cargo clean
+check:
+  @echo '[JUST] Check with cargo: '
+  cargo check
+
+
+# Run examples
+example-model:
+  @echo '[JUST] Call cargo example `model`: '
+  cargo run --release --example model
+
+example-texture:
+  @echo '[JUST] Call cargo example `render_texture`: '
+  cargo run --release --example render_texture
+
+example-to-texture:
+  @echo '[JUST] Call cargo example `render_to_texture`: '
+  cargo run --release --example render_to_texture
+
+example-simple:
+  @echo '[JUST] Call cargo example `simple`: '
+  cargo run --release --example simple
+
+example-custom:
+  @echo '[JUST] Call cargo example `custom`: '
+  cargo run --release --example custom
