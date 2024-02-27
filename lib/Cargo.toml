@@ -218,7 +218,6 @@ wgpu = { version = "0.19.0", features = [ "webgl", "wgsl" ], default-features = 
 members = [
   ".",
   "crates/custom-engine-core",
-  "crates/custom-engine-func",
   "crates/custom-engine-components",
   "crates/custom-engine-models", 
 ]

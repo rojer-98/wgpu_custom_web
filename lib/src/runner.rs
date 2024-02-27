@@ -1,6 +1,5 @@
-use std::path::Path;
-
 use anyhow::Result;
+#[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
 #[cfg(not(target_arch = "wasm32"))]
 use log4rs::{
@@ -8,8 +7,6 @@ use log4rs::{
     config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
 };
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, KeyEvent, WindowEvent},
@@ -36,8 +33,8 @@ pub struct EngineRunner {
 }
 
 impl EngineRunner {
-    pub fn new<S: AsRef<Path>>(config_path: S) -> Result<Self> {
-        let config = EngineConfig::load(config_path)?;
+    pub fn new<C: AsRef<str>>(config: C) -> Result<Self> {
+        let config = EngineConfig::load(config)?;
 
         Ok(Self { config })
     }
@@ -183,7 +180,6 @@ impl EngineRunner {
         cfg_if::cfg_if! {
           if #[cfg(target_arch = "wasm32")] {
                 use anyhow::anyhow;
-                use winit::dpi::{LogicalSize};
                 use winit::platform::web::WindowExtWebSys;
 
                 web_sys::window()

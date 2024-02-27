@@ -19,15 +19,15 @@ alias cpf := clippy-fix
 alias cl := clean
 alias ck := check
 
-out_dir_wasm := "../src/connectors/raw"
-out_dir_assets := "../public"
+out_dir_wasm := "../src/connectors/engine"
+out_dir_assets := "../src/assets/engine"
 
 # Build
 build-web:
   @echo '[JUST] Web build with `wasm-pack`: '
   -mkdir {{out_dir_wasm}}
   wasm-pack build --target web --release --out-dir {{out_dir_wasm}} --out-name index
-  -cp -R ./assets {{out_dir_assets}}
+  -cp -R ./assets/* {{out_dir_assets}}
 build-debug:
   @echo '[JUST] Debug build with `cargo`: '
   cargo build  
