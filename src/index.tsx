@@ -7,7 +7,7 @@ import init_wasm from "./connectors/init";
 import runner from "./connectors/runner";
 
 await init_wasm();
-await runner();
+
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
 );
@@ -16,6 +16,8 @@ root.render(
     <App />
   </React.StrictMode>,
 );
+
+await runner();
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

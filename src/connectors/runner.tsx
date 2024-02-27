@@ -4,5 +4,9 @@ import config from "../assets/engine/config.toml";
 
 export default async function runner() {
   const c = await get_file(config);
-  run(c);
+  try {
+    run(c);
+  } catch (e) {
+    console.log(e);
+  }
 }
