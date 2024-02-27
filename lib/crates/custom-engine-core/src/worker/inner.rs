@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use image::{ImageBuffer, Rgba};
 use log::debug;
 use pollster::block_on;
@@ -84,7 +86,7 @@ impl<'a> Worker<'a> {
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
 
-        Ok(self.update_buffer_data(buffer, 0, data))
+        self.update_buffer_data(buffer, 0, data)
     }
 
     pub fn update_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -98,7 +100,7 @@ impl<'a> Worker<'a> {
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;
 
-        Ok(self.update_buffer_data(buffer, 0, data))
+        self.update_buffer_data(buffer, 0, data)
     }
 
     pub fn update_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -109,7 +111,7 @@ impl<'a> Worker<'a> {
     ) -> Result<(), CoreError> {
         let buffer = self.get_buffer_ref(id)?;
 
-        Ok(self.update_buffer_data(&buffer, offset, data))
+        self.update_buffer_data(&buffer, offset, data)
     }
 
     pub fn update_buffer_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -118,7 +120,7 @@ impl<'a> Worker<'a> {
         offset: u64,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
-        Ok(self.update_buffer_data(buffer, offset, data))
+        self.update_buffer_data(buffer, offset, data)
     }
 
     pub fn read_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -286,8 +288,17 @@ impl<'a> Worker<'a> {
         b: &Buffer,
         offset: u64,
         data: &'_ [T],
-    ) {
-        self.queue
-            .write_buffer(&b, offset, bytemuck::cast_slice(data));
+    ) -> Result<(), CoreError> {
+        let buffer_size = b.size();
+        let data_len = ((data.len() * size_of::<T>()) as u64) + offset;
+
+        if data_len > buffer_size {
+            return Err(CoreError::WrongBufferSize);
+        } else {
+            self.queue
+                .write_buffer(&b, offset, bytemuck::cast_slice(data));
+        }
+
+        Ok(())
     }
 }

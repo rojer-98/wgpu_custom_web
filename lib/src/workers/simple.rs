@@ -176,8 +176,7 @@ impl RenderWorker for SimpleRender {
         w.render(r_p)?;
         w.present()?;
 
-        let data_len = (self.data.len() * std::mem::size_of::<Vertex>()) as u64;
-        if data_len < 1000 {
+        if let Ok(_) = w.update_buffer(*vb_id, 0, &self.data) {
             self.data.extend(&vec![
                 Vertex {
                     position: [0.0 - self.shift, 0.5 + self.shift, 0.0],
@@ -193,8 +192,6 @@ impl RenderWorker for SimpleRender {
                 },
             ]);
             self.shift += 0.1;
-
-            w.update_buffer(*vb_id, 0, &self.data)?;
         }
 
         Ok(())
