@@ -21,7 +21,7 @@ pub fn get_image_data<P: AsRef<Path>>(file_name: P) -> Option<Vec<u8>> {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct VertexPos {
+struct VertexPos {
     position: [f32; 3],
     tex_coord: [f32; 2],
 }
@@ -41,7 +41,7 @@ impl VertexPos {
     }
 }
 
-pub const VERTICES_POS: &[VertexPos] = &[
+const VERTICES_POS: &[VertexPos] = &[
     //Left
     VertexPos {
         position: [-1., -1., 0.],

@@ -104,19 +104,21 @@ impl<'a> Worker<'a> {
     pub fn update_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
+        offset: u64,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let buffer = self.get_buffer_ref(id)?;
 
-        Ok(self.update_buffer_data(&buffer, 0, data))
+        Ok(self.update_buffer_data(&buffer, offset, data))
     }
 
-    pub fn update_plain_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn update_buffer_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         buffer: &'_ Buffer,
+        offset: u64,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
-        Ok(self.update_buffer_data(buffer, 0, data))
+        Ok(self.update_buffer_data(buffer, offset, data))
     }
 
     pub fn read_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(

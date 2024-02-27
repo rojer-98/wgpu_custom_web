@@ -14,7 +14,7 @@ use crate::files::{ShaderFiles, ShaderKind};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
+struct Vertex {
     position: [f32; 3],
     _pad1: f32,
     color: [f32; 3],
@@ -36,7 +36,7 @@ impl Vertex {
     }
 }
 
-pub const VERTICES: &[Vertex] = &[
+const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.5, 0.0],
         _pad1: 0.0,

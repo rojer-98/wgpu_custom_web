@@ -13,7 +13,7 @@ use crate::files::{ShaderFiles, ShaderKind};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
+struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
 }
@@ -33,7 +33,7 @@ impl Vertex {
     }
 }
 
-pub const VERTICES: &[Vertex] = &[
+const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.5, 0.0],
         color: [1.0, 0.0, 0.0],
@@ -81,7 +81,7 @@ impl RenderWorker for SimpleRenderToTexture {
             .label("Some buffer")
             .binding(0)
             .data(bytemuck::cast_slice(VERTICES))
-            .usage(wgpu::BufferUsages::VERTEX)
+            .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 
         let pipeline_layout = w

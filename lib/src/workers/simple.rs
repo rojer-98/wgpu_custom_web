@@ -33,7 +33,7 @@ impl Vertex {
     }
 }
 
-pub const VERTICES: &[Vertex] = &[
+const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.5, 0.0],
         color: [1.0, 0.0, 0.0],
@@ -49,6 +49,9 @@ pub const VERTICES: &[Vertex] = &[
 ];
 
 pub struct SimpleRender {
+    shift: f32,
+    data: Vec<Vertex>,
+
     vb_id: usize,
     p_id: usize,
 }
@@ -58,6 +61,9 @@ impl RenderWorker for SimpleRender {
     where
         Self: Sized,
     {
+        let shift = 0.001;
+        let data = VERTICES.to_vec();
+
         let sh_data = ShaderFiles::get_file_data(ShaderKind::Simple).unwrap();
         let shader = w
             .create_shader()
@@ -84,8 +90,9 @@ impl RenderWorker for SimpleRender {
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
+            .size(1024)
             .data(bytemuck::cast_slice(VERTICES))
-            .usage(wgpu::BufferUsages::VERTEX)
+            .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 
         let pipeline_layout = w
@@ -118,7 +125,12 @@ impl RenderWorker for SimpleRender {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self { p_id, vb_id })
+        Ok(Self {
+            p_id,
+            vb_id,
+            data,
+            shift,
+        })
     }
 
     fn reinit(&mut self, _w: &mut Worker<'_>) -> Result<(), CoreError>
@@ -158,11 +170,32 @@ impl RenderWorker for SimpleRender {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..1, 0..3).vertex_buffer(&vb),
+                RenderStage::new(&pipeline, 0..1, 0..42).vertex_buffer(&vb),
             );
 
         w.render(r_p)?;
         w.present()?;
+
+        let data_len = (self.data.len() * std::mem::size_of::<Vertex>()) as u64;
+        if data_len < 1000 {
+            self.data.extend(&vec![
+                Vertex {
+                    position: [0.0 - self.shift, 0.5 + self.shift, 0.0],
+                    color: [1.0, 0.0, 0.0],
+                },
+                Vertex {
+                    position: [-0.5 - self.shift, -0.5 + self.shift, 0.0],
+                    color: [0.0, 1.0, 0.0],
+                },
+                Vertex {
+                    position: [0.5 - self.shift, -0.5 + self.shift, 0.0],
+                    color: [0.0, 0.0, 1.0],
+                },
+            ]);
+            self.shift += 0.1;
+
+            w.update_buffer(*vb_id, 0, &self.data)?;
+        }
 
         Ok(())
     }
