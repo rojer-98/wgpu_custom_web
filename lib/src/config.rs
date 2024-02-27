@@ -1,6 +1,6 @@
-use std::{env, fmt::Debug, fs::File, io::BufReader, path::Path, str::FromStr};
+use std::{env, fmt::Debug, str::FromStr};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use log::trace;
 use serde::{de::DeserializeOwned, Deserialize};
 
@@ -26,17 +26,17 @@ pub struct EngineConfig {
 }
 
 pub trait LoadConfig {
-    fn load<S: AsRef<Path>>(path: S) -> Result<Self>
+    fn load<C: AsRef<str>>(config: C) -> Result<Self>
     where
         Self: Sized + DeserializeOwned + Debug;
 }
 
 impl<T: Sized + DeserializeOwned + Debug> LoadConfig for T {
-    fn load<'a, S: AsRef<Path>>(path: S) -> Result<Self>
+    fn load<C: AsRef<str>>(config: C) -> Result<Self>
     where
         Self: Sized + DeserializeOwned + Debug,
     {
-        let mut params = load_config(&path)?;
+        let mut params = serde_yaml::from_str(config.as_ref())?;
 
         expand_variables(&mut params);
 
@@ -80,19 +80,6 @@ impl<T: Sized + DeserializeOwned + Debug> LoadConfig for T {
 
         Ok(params?)
     }
-}
-
-fn load_config<P: AsRef<Path>>(path: P) -> Result<serde_yaml::Value> {
-    let full_path = env::current_dir()?.join(&path);
-    let path_display = full_path.display();
-
-    let file = File::open(path.as_ref())
-        .context(format!("failed to open config file: {path_display}",))?;
-
-    let reader = BufReader::new(file);
-    let config: serde_yaml::Value = serde_yaml::from_reader(reader)?;
-
-    Ok(config)
 }
 
 /// This function is used for scan every config's string parameter and replace environment variables inside

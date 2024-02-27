@@ -19,7 +19,7 @@ alias cpf := clippy-fix
 alias cl := clean
 alias ck := check
 
-out_dir_wasm := "../src/connectors/raw"
+out_dir_wasm := "../src/connectors/engine"
 out_dir_assets := "../public"
 
 # Build

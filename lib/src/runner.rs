@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use log::LevelFilter;
 #[cfg(not(target_arch = "wasm32"))]
@@ -36,8 +34,8 @@ pub struct EngineRunner {
 }
 
 impl EngineRunner {
-    pub fn new<S: AsRef<Path>>(config_path: S) -> Result<Self> {
-        let config = EngineConfig::load(config_path)?;
+    pub fn new<C: AsRef<str>>(config: C) -> Result<Self> {
+        let config = EngineConfig::load(config)?;
 
         Ok(Self { config })
     }

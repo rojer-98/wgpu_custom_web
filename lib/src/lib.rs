@@ -10,11 +10,11 @@ use runner::EngineRunner;
 use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-const CONFIG_PATH: &'static str = "assets/config.toml";
+const CONFIG: &'static str = include_str!("../assets/config.toml");
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run() {
-    EngineRunner::new(CONFIG_PATH)
+    EngineRunner::new(CONFIG)
         .expect("Init conifg error: ")
         .logger()
         .expect("Init logger error: ")
