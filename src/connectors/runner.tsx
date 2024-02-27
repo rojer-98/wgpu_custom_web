@@ -2,8 +2,9 @@ import { run } from "./engine";
 import { get_file } from "../helpers/file";
 import config from "../assets/engine/config.toml";
 
-export default async function runner() {
+export default async function engine_runner() {
   const c = await get_file(config);
+
   try {
     run(c);
   } catch (e) {

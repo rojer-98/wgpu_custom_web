@@ -1,7 +1,5 @@
-import React from "react";
 import logo from "./assets/images/logo.svg";
 import "./App.css";
-import runner from "./connectors/runner";
 
 function App() {
   return (

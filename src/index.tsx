@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import init_wasm from "./connectors/init";
-import runner from "./connectors/runner";
+import engine_runner from "./connectors/runner";
 
 await init_wasm();
 
@@ -17,7 +17,7 @@ root.render(
   </React.StrictMode>,
 );
 
-await runner();
+await engine_runner();
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
