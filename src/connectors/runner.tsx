@@ -1,8 +1,8 @@
 import { run } from "./engine";
-import { FileType, get_file } from "../helpers/file";
+import { get_file } from "../helpers/file";
+import config from "../assets/engine/config.toml";
 
 export default async function runner() {
-  const config_file = await get_file(FileType.Config);
-
-  run(config_file);
+  const c = await get_file(config);
+  run(c);
 }

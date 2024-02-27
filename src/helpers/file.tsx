@@ -1,11 +1,7 @@
-export enum FileType {
-  Config = "assets/config.toml",
-}
-
-export async function get_file(file_type: FileType): Promise<string> {
+export async function get_file(file: string): Promise<string> {
   let c: string = "";
 
-  await fetch(file_type)
+  await fetch(file)
     .then((r) => r.text())
     .then((text) => {
       c = text;
