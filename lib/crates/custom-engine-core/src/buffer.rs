@@ -119,7 +119,6 @@ impl<'a, T: bytemuck::Pod + bytemuck::Zeroable> Builder<'a> for BufferBuilder<'a
     }
 
     fn build(self) -> Result<Self::Final, CoreError> {
-        use std::mem::size_of;
         use wgpu::util::DeviceExt;
 
         let id = self.id.unwrap_or_default();
@@ -129,18 +128,19 @@ impl<'a, T: bytemuck::Pod + bytemuck::Zeroable> Builder<'a> for BufferBuilder<'a
         let usage = self.usage;
         let binding = self.binding;
         let mapped_at_creation = self.mapped_at_creation;
-        let mut size = self.size.unwrap_or_default();
+        let size = self.size.unwrap_or_default();
 
         let inner_buffer = if let Some(d) = self.data {
-            let contents = bytemuck::cast_slice(d);
-            if size == 0 {
-                size = (contents.len() * size_of::<T>()) as u64;
+            let mut contents = bytemuck::cast_slice(d).to_vec();
+
+            if size != 0 {
+                contents.resize(size as _, 0)
             }
 
             self.device
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(label),
-                    contents,
+                    contents: &contents,
                     usage,
                 })
         } else {

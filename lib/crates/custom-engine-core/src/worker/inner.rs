@@ -1,5 +1,7 @@
+use std::mem::size_of;
+
 use image::{ImageBuffer, Rgba};
-use log::debug;
+use log::{debug, info, warn};
 use pollster::block_on;
 
 use crate::{
@@ -18,11 +20,27 @@ impl<'a> Worker<'a> {
     pub fn resize_by_scale(&mut self, new_scale_factor: f64) {
         if self.scale_factor > 0. {
             let (w, h) = (
-                (self.size.0 as f64 / self.scale_factor) * new_scale_factor,
-                (self.size.1 as f64 / self.scale_factor) * new_scale_factor,
+                ((self.size.0 as f64 / self.scale_factor) * new_scale_factor) as u32,
+                ((self.size.1 as f64 / self.scale_factor) * new_scale_factor) as u32,
             );
-            self.size.0 = w as u32;
-            self.size.1 = h as u32;
+            let (a_w, a_h) = (
+                self.limits.max_texture_dimension_2d,
+                self.limits.max_texture_dimension_2d,
+            );
+
+            self.size.0 = if w > a_w {
+                warn!("New `width` {w} is more than maximum. Set the max `width`: {a_w}");
+                a_w
+            } else {
+                w
+            };
+            self.size.1 = if h > a_h {
+                warn!("New `height` {h} is more than maximum. Set the max `height`: {a_h}");
+                a_h
+            } else {
+                h
+            };
+            info!("Resize with size: {:?}", self.size);
             self.scale_factor = new_scale_factor;
             self.resize();
         }
@@ -84,7 +102,7 @@ impl<'a> Worker<'a> {
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
 
-        Ok(self.update_buffer_data(buffer, 0, data))
+        self.update_buffer_data(buffer, 0, data)
     }
 
     pub fn update_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -98,25 +116,27 @@ impl<'a> Worker<'a> {
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;
 
-        Ok(self.update_buffer_data(buffer, 0, data))
+        self.update_buffer_data(buffer, 0, data)
     }
 
     pub fn update_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
+        offset: u64,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let buffer = self.get_buffer_ref(id)?;
 
-        Ok(self.update_buffer_data(&buffer, 0, data))
+        self.update_buffer_data(&buffer, offset, data)
     }
 
-    pub fn update_plain_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn update_buffer_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         buffer: &'_ Buffer,
+        offset: u64,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
-        Ok(self.update_buffer_data(buffer, 0, data))
+        self.update_buffer_data(buffer, offset, data)
     }
 
     pub fn read_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -284,8 +304,17 @@ impl<'a> Worker<'a> {
         b: &Buffer,
         offset: u64,
         data: &'_ [T],
-    ) {
-        self.queue
-            .write_buffer(&b, offset, bytemuck::cast_slice(data));
+    ) -> Result<(), CoreError> {
+        let buffer_size = b.size();
+        let data_len = ((data.len() * size_of::<T>()) as u64) + offset;
+
+        if data_len > buffer_size {
+            return Err(CoreError::WrongBufferSize);
+        } else {
+            self.queue
+                .write_buffer(&b, offset, bytemuck::cast_slice(data));
+        }
+
+        Ok(())
     }
 }

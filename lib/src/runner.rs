@@ -45,7 +45,7 @@ impl EngineRunner {
                 use std::panic::set_hook;
 
                 set_hook(Box::new(console_error_panic_hook::hook));
-                console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
+                console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
             } else {
                 if let Some(logger) = self.config.logger.as_ref() {
                     let _ = log4rs::init_file(logger, Default::default())?;
@@ -168,13 +168,9 @@ impl EngineRunner {
     }
 
     fn env_init(&self) -> Result<(EventLoop<()>, Window)> {
-        let config_width = self.config.width;
-        let config_height = self.config.height;
-
         let event_loop = EventLoop::new()?;
-        let inner_size = PhysicalSize::new(config_width, config_height);
         let window = WindowBuilder::new()
-            .with_inner_size(inner_size)
+            .with_inner_size(PhysicalSize::new(self.config.width, self.config.height))
             .build(&event_loop)?;
 
         cfg_if::cfg_if! {
