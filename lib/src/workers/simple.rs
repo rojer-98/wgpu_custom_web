@@ -170,7 +170,10 @@ impl RenderWorker for SimpleRender {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..1, 0..42).vertex_buffer(&vb),
+                RenderStage::new(&pipeline)
+                    .instances(0..1)
+                    .entities(0..42)
+                    .vertex_buffer(&vb),
             );
 
         w.render(r_p)?;

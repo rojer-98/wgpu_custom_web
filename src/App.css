@@ -37,6 +37,10 @@
   }
 }
 
+.Engine {
+  background-color: #282c34;
+}
+
 canvas {
   background-color: black;
 

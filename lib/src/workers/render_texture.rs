@@ -257,7 +257,9 @@ impl RenderWorker for SimpleRenderTexture {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..6, 0..6)
+                RenderStage::new(&pipeline)
+                    .instances(0..6)
+                    .entities(0..6)
                     .vertex_buffer(&vb)
                     .bind_groups(vec![bg_t, bg_c]),
             );

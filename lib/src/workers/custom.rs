@@ -196,7 +196,9 @@ impl RenderWorker for SimpleCustomRender {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..1, 0..3)
+                RenderStage::new(&pipeline)
+                    .instances(0..1)
+                    .entities(0..3)
                     .vertex_buffer(&vb)
                     .bind_groups(vec![s.get_group()]),
             );

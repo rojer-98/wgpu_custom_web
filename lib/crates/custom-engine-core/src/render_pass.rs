@@ -27,21 +27,38 @@ pub struct RenderStage<'a> {
     bind_groups: Option<Vec<&'a BindGroup>>,
     model: Option<&'a Model>,
 
-    instances: Range<u32>,
-    vertices: Range<u32>,
+    instances: Option<Range<u32>>,
+    base_vertex: Option<i32>,
+    entities: Option<Range<u32>>,
 }
 
 impl<'a> RenderStage<'a> {
-    pub fn new(pipeline: &'a Pipeline, instances: Range<u32>, vertices: Range<u32>) -> Self {
+    pub fn new(pipeline: &'a Pipeline) -> Self {
         Self {
             pipeline,
-            vertices,
-            instances,
+            instances: None,
+            base_vertex: None,
+            entities: None,
             model: None,
             bind_groups: None,
             index_buffer: None,
             vertex_buffer: None,
         }
+    }
+
+    pub fn instances(mut self, instances: Range<u32>) -> Self {
+        self.instances = Some(instances);
+        self
+    }
+
+    pub fn entities(mut self, entities: Range<u32>) -> Self {
+        self.entities = Some(entities);
+        self
+    }
+
+    pub fn base_vertex(mut self, base_vertex: i32) -> Self {
+        self.base_vertex = Some(base_vertex);
+        self
     }
 
     pub fn model(mut self, model: &'a Model) -> Self {
@@ -277,10 +294,13 @@ Process `{label}`:
                     vertex_buffer,
                     index_buffer,
                     bind_groups,
-                    vertices,
                     instances,
                     model,
+                    entities,
+                    base_vertex,
                 } = r_s;
+                let entities = entities.ok_or(CoreError::EmptyEntities(i))?;
+                let instances = instances.ok_or(CoreError::EmptyInstances(i))?;
                 let indexed = r_s.index_buffer.is_some();
 
                 if let Some(vb) = vertex_buffer.as_ref() {
@@ -322,7 +342,7 @@ Process `render stage: {i}`
     Vertex Buffer: {vertex_buffer:#?},
     Index Buffer: {index_buffer:#?},
     Bind Groups: {bind_groups:#?},
-    Vertices: {vertices:?},
+    Entities: {entities:?},
     Instances: {instances:?},
 "
                 );
@@ -345,9 +365,10 @@ Process `render stage: {i}`
                         render_pass.draw_indexed(0..mesh.num_elements, 0, instances.clone());
                     }
                 } else if indexed {
-                    render_pass.draw_indexed(vertices, 0, instances);
+                    let base_vertex = base_vertex.unwrap_or(0);
+                    render_pass.draw_indexed(entities, base_vertex, instances);
                 } else {
-                    render_pass.draw(vertices, instances);
+                    render_pass.draw(entities, instances);
                 }
             }
         }

@@ -162,7 +162,10 @@ impl RenderWorker for SimpleRenderToTexture {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..1, 0..3).vertex_buffer(&vb),
+                RenderStage::new(&pipeline)
+                    .instances(0..1)
+                    .entities(0..3)
+                    .vertex_buffer(&vb),
             );
 
         w.render(r_p)?;

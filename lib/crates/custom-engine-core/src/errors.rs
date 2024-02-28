@@ -68,6 +68,10 @@ pub enum CoreError {
     WrongBufferSize,
     #[error("request adapter in `fn init()` of Runtime")]
     RequestAdapter,
+    #[error("entities in `Render Stage {0}` is not set")]
+    EmptyEntities(usize),
+    #[error("instances in `Render Stage {0}` is not set")]
+    EmptyInstances(usize),
 
     // foreign errors
     #[error(transparent)]
