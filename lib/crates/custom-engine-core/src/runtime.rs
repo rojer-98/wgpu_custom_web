@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use derive_more::Display;
 use log::{debug, info};
 use pollster::block_on;
@@ -57,14 +56,6 @@ impl<'a> Runtime<'a> {
             ..Default::default()
         });
 
-        let size = window
-            .map(|w| {
-                let i_s = w.inner_size();
-                (i_s.width, i_s.height)
-            })
-            .filter(|(w, h)| *w != 0 || *h != 0)
-            .unwrap_or((800, 600));
-
         let surface = window.map(|w| instance.create_surface(w).ok()).flatten();
 
         let power_preference = wgpu::PowerPreference::default();
@@ -77,7 +68,7 @@ impl<'a> Runtime<'a> {
                 })
                 .await
         })
-        .ok_or(anyhow!("Cannot create `adapter` in `fn new()` of State"))?;
+        .ok_or(CoreError::RequestAdapter)?;
 
         let adapter_info = adapter.get_info();
         let adapter_features = adapter.features();
@@ -86,6 +77,21 @@ impl<'a> Runtime<'a> {
             wgpu::Limits::downlevel_webgl2_defaults()
         } else {
             wgpu::Limits::default()
+        };
+
+        let size = if cfg!(target_arch = "wasm32") {
+            (
+                limits.max_texture_dimension_2d,
+                limits.max_texture_dimension_2d,
+            )
+        } else {
+            window
+                .map(|w| {
+                    let i_s = w.inner_size();
+                    (i_s.width, i_s.height)
+                })
+                .filter(|(w, h)| *w != 0 || *h != 0)
+                .unwrap_or((1200, 1600))
         };
 
         debug!(

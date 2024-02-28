@@ -13,7 +13,7 @@ use crate::files::{ShaderFiles, ShaderKind};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
+struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
 }

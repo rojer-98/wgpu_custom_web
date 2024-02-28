@@ -66,6 +66,8 @@ pub enum CoreError {
     NotInitView,
     #[error("data is more than buffer size")]
     WrongBufferSize,
+    #[error("request adapter in `fn init()` of Runtime")]
+    RequestAdapter,
 
     // foreign errors
     #[error(transparent)]

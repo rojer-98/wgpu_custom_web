@@ -7,8 +7,6 @@ edition = "2021"
 
 [features]
 default = []
-egui = [ "custom-engine-core/egui" ]
-puffin = [ "custom-engine-core/puffin" ]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -79,6 +77,7 @@ web-sys = { version = "0.3.68", features = [
   "console",
   "Document",
   "Window",
+  "Screen",
   "Element",
   "Document",
   "Navigator",
