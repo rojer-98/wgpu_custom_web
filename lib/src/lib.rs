@@ -12,6 +12,10 @@ use wasm_bindgen::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]
 const CONFIG: &'static str = include_str!("../assets/config.toml");
 
+#[cfg(target_arch = "wasm32")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run() {
     EngineRunner::new(CONFIG)

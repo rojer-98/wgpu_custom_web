@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use image::{ImageBuffer, Rgba};
-use log::debug;
+use log::{debug, info, warn};
 use pollster::block_on;
 
 use crate::{
@@ -20,11 +20,27 @@ impl<'a> Worker<'a> {
     pub fn resize_by_scale(&mut self, new_scale_factor: f64) {
         if self.scale_factor > 0. {
             let (w, h) = (
-                (self.size.0 as f64 / self.scale_factor) * new_scale_factor,
-                (self.size.1 as f64 / self.scale_factor) * new_scale_factor,
+                ((self.size.0 as f64 / self.scale_factor) * new_scale_factor) as u32,
+                ((self.size.1 as f64 / self.scale_factor) * new_scale_factor) as u32,
             );
-            self.size.0 = w as u32;
-            self.size.1 = h as u32;
+            let (a_w, a_h) = (
+                self.limits.max_texture_dimension_2d,
+                self.limits.max_texture_dimension_2d,
+            );
+
+            self.size.0 = if w > a_w {
+                warn!("New `width` {w} is more than maximum. Set the max `width`: {a_w}");
+                a_w
+            } else {
+                w
+            };
+            self.size.1 = if h > a_h {
+                warn!("New `height` {h} is more than maximum. Set the max `height`: {a_h}");
+                a_h
+            } else {
+                h
+            };
+            info!("Resize with size: {:?}", self.size);
             self.scale_factor = new_scale_factor;
             self.resize();
         }

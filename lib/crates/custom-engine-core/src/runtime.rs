@@ -142,6 +142,7 @@ Adapter:
             RuntimeKind::Texture(texture_path.to_string(), image_format),
             &self.device,
             &self.queue,
+            self.limits.clone(),
             None,
             Context::new(),
         )
@@ -157,6 +158,7 @@ Adapter:
             ),
             &self.device,
             &self.queue,
+            self.limits.clone(),
             None,
             Context::new(),
         )

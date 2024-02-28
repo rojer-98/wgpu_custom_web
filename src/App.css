@@ -39,12 +39,12 @@
 
 canvas {
   background-color: black;
-  
+
   min-width: 80%;
   max-width: 80%;
 
   max-height: 80%;
   min-height: 80%;
-  
-  scale: 1.25;
+
+  scale: 1;
 }

@@ -26,6 +26,7 @@ impl View {
 pub struct Worker<'a> {
     pub(crate) device: &'a wgpu::Device,
     pub(crate) queue: &'a wgpu::Queue,
+    pub(crate) limits: wgpu::Limits,
 
     pub(crate) runtime_kind: RuntimeKind<'a>,
     pub(crate) context: Context,
@@ -44,6 +45,7 @@ impl<'a> Worker<'a> {
         runtime_kind: RuntimeKind<'a>,
         device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
+        limits: wgpu::Limits,
         view: Option<View>,
         context: Context,
     ) -> Result<Self, CoreError> {
@@ -59,6 +61,7 @@ impl<'a> Worker<'a> {
             format,
             device,
             queue,
+            limits,
             view,
             context,
         })
