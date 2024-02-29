@@ -284,8 +284,8 @@ impl RenderWorker for SimpleModelRender {
             .render_stage(
                 0,
                 RenderStage::new(&pipeline)
-                    .entities(0..30)
-                    .instances(0..1)
+                    .entities(0..1)
+                    .instances(0..30)
                     .vertex_buffer(&vb)
                     .bind_groups(vec![c.get_group()])
                     .model(&m),
