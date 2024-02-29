@@ -2817,6 +2817,7 @@ dependencies = [
  "console_log",
  "custom-engine-components",
  "custom-engine-core",
+ "custom-engine-derive",
  "custom-engine-models",
  "derive_more",
  "futures",

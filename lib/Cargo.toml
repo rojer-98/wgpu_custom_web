@@ -20,6 +20,7 @@ path = "src/main.rs"
 custom-engine-core = { path = "./crates/custom-engine-core" }
 custom-engine-components = { path = "./crates/custom-engine-components" }
 custom-engine-models = { path = "./crates/custom-engine-models" }
+custom-engine-derive = { path = "./crates/custom-engine-derive" }
 
 # Graphic
 winit = { version =  "0.29", features = [ "rwh_05" ] }

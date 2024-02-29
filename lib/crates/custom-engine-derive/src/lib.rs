@@ -2,56 +2,47 @@ mod builder;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics};
+use syn::{parse_macro_input, parse_quote, DeriveInput, GenericParam, Generics, Lit};
 
 use builder::fields_builder;
-
-/*
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct InstanceRaw {
-    #[allow(dead_code)]
-    model: [[f32; 4]; 4],
-}
-
-impl VertexLayout for InstanceRaw {
-    const ATTRIBUTES: &'static [wgpu::VertexAttribute] =
-        &wgpu::vertex_attr_array![5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem::size_of;
-
-        wgpu::VertexBufferLayout {
-            array_stride: size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
-}
-*/
 
 #[proc_macro_derive(VertexLayout, attributes(attributes))]
 pub fn vertex_layout(item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item);
-    let DeriveInput {
-        attrs,
-        vis,
-        ident,
-        generics,
-        data,
-    } = input;
+    let DeriveInput { attrs, ident, .. } = input;
 
-    let attrs = quote! {
-        const ATTRIBUTES: &'static [wgpu::VertexAttribute] =
-    };
-
-    quote! {
-        impl VertexLayout for #ident {
-
+    let mut wgpu_attrs: proc_macro2::TokenStream = "".parse().unwrap();
+    let mut step_mode: proc_macro2::TokenStream = "".parse().unwrap();
+    for attr in &attrs {
+        if attr.path().is_ident("attributes") {
+            if let Lit::Str(val) = attr.parse_args().unwrap() {
+                if val.value().contains("Vertex") || val.value().contains("Instance") {
+                    step_mode = val.parse().unwrap();
+                } else {
+                    wgpu_attrs = val.parse().unwrap();
+                }
+            }
         }
     }
-    .into()
+
+    let res = quote! {
+        impl VertexLayout for #ident {
+            const ATTRIBUTES: &'static [wgpu::VertexAttribute] = &wgpu::vertex_attr_array![#wgpu_attrs];
+
+            fn desc() -> wgpu::VertexBufferLayout<'static> {
+                use std::mem::size_of;
+
+                wgpu::VertexBufferLayout {
+                    array_stride: size_of::<Self>() as wgpu::BufferAddress,
+                    step_mode: wgpu::VertexStepMode::#step_mode,
+                    attributes: &Self::ATTRIBUTES,
+                }
+            }
+        }
+    };
+    println!("{res}");
+
+    res.into()
 }
 
 #[proc_macro_derive(Builder)]

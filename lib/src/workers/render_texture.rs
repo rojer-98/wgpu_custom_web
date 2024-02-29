@@ -5,10 +5,11 @@ use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
-    traits::{Builder, RenderWorker},
+    traits::{Builder, RenderWorker, VertexLayout},
     uniform::UniformDescription,
     worker::Worker,
 };
+use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
 use winit::event::WindowEvent;
@@ -20,25 +21,12 @@ pub fn get_image_data<P: AsRef<Path>>(file_name: P) -> Option<Vec<u8>> {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
+#[attributes("Vertex")]
+#[attributes("0 => Float32x3, 1 => Float32x2")]
 struct VertexPos {
     position: [f32; 3],
     tex_coord: [f32; 2],
-}
-
-impl VertexPos {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
 }
 
 const VERTICES_POS: &[VertexPos] = &[
