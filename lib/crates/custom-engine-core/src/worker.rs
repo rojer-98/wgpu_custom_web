@@ -1,4 +1,3 @@
-mod chain;
 mod context_impls;
 mod inner;
 
@@ -65,5 +64,9 @@ impl<'a> Worker<'a> {
             view,
             context,
         })
+    }
+
+    pub fn into_context(self) -> Context {
+        self.context
     }
 }

@@ -50,7 +50,7 @@ pub enum CoreError {
     EmptyRenderPassColorAttachemnts(String),
     #[error("query type in `{0}` is not set")]
     EmptyQueryType(String),
-    #[error("{0} with id: {1} is not exixt in `context`")]
+    #[error("{0} with id: {1} is not exist in `context`")]
     ContextFieldIsNotExist(String, usize),
     #[error("cannot create image buffer")]
     ImageBufferCreate,
@@ -68,6 +68,10 @@ pub enum CoreError {
     WrongBufferSize,
     #[error("request adapter in `fn init()` of Runtime")]
     RequestAdapter,
+    #[error("entities in `Render Stage {0}` is not set")]
+    EmptyEntities(usize),
+    #[error("instances in `Render Stage {0}` is not set")]
+    EmptyInstances(usize),
 
     // foreign errors
     #[error(transparent)]

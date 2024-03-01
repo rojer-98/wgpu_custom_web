@@ -1,6 +1,7 @@
 pub mod material;
 pub mod mesh;
 
+use custom_engine_derive::VertexLayout;
 use custom_engine_models::obj::ObjFile;
 
 use cgmath::{Vector2, Vector3};
@@ -326,7 +327,9 @@ impl<'a> ModelBuilder<'a> {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
+#[attributes("Vertex")]
+#[attributes("0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x3, 4 => Float32x3")]
 struct ModelRaw {
     position: [f32; 3],
     tex_coords: [f32; 2],
@@ -335,6 +338,7 @@ struct ModelRaw {
     bitangent: [f32; 3],
 }
 
+/*
 impl VertexLayout for ModelRaw {
     const ATTRIBUTES: &'static [wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x3, 4 => Float32x3,];
 
@@ -348,3 +352,4 @@ impl VertexLayout for ModelRaw {
         }
     }
 }
+*/

@@ -195,10 +195,13 @@ Adapter:
 
     fn configure_surface(&self) -> Option<SurfaceProperties> {
         let surface = self.surface.as_ref()?;
-
         let size = self.size;
+
         let surface_caps = surface.get_capabilities(&self.adapter);
         info!("Surface capabilities: {surface_caps:#?}");
+
+        let limits = &self.limits;
+        info!("Limits: {limits:#?}");
 
         let surface_format = surface_caps
             .formats
@@ -206,8 +209,8 @@ Adapter:
             .find(|f| f.is_srgb())
             .cloned()
             .unwrap_or(surface_caps.formats[0]);
-
         info!("Surface format: {surface_format:#?}");
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,

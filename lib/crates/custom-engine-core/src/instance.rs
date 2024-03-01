@@ -1,5 +1,7 @@
 use cgmath::{Deg, InnerSpace, Matrix4, Quaternion, Rotation3, Vector3, Zero};
 
+use custom_engine_derive::VertexLayout;
+
 use crate::traits::VertexLayout;
 
 #[derive(Debug)]
@@ -57,23 +59,10 @@ impl Instance {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
+#[attributes("Instance")]
+#[attributes("5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4")]
 pub struct InstanceRaw {
     #[allow(dead_code)]
     model: [[f32; 4]; 4],
-}
-
-impl VertexLayout for InstanceRaw {
-    const ATTRIBUTES: &'static [wgpu::VertexAttribute] =
-        &wgpu::vertex_attr_array![5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem::size_of;
-
-        wgpu::VertexBufferLayout {
-            array_stride: size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
 }

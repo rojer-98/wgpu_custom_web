@@ -2,9 +2,10 @@ use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
-    traits::{Builder, RenderWorker},
+    traits::{Builder, RenderWorker, VertexLayout},
     worker::Worker,
 };
+use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
 use winit::event::WindowEvent;
@@ -12,25 +13,12 @@ use winit::event::WindowEvent;
 use crate::files::{ShaderFiles, ShaderKind};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
+#[attributes("Vertex")]
+#[attributes("0 => Float32x3, 1 => Float32x3")]
 struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
-}
-
-impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
 }
 
 const VERTICES: &[Vertex] = &[
@@ -170,7 +158,10 @@ impl RenderWorker for SimpleRender {
             )
             .render_stage(
                 0,
-                RenderStage::new(&pipeline, 0..1, 0..42).vertex_buffer(&vb),
+                RenderStage::new(&pipeline)
+                    .instances(0..1)
+                    .entities(0..42)
+                    .vertex_buffer(&vb),
             );
 
         w.render(r_p)?;
