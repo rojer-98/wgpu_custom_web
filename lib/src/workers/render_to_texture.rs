@@ -105,11 +105,7 @@ impl RenderWorker for SimpleRenderToTexture {
         Ok(Self { p_id, vb_id })
     }
 
-    fn update(
-        &mut self,
-        _w: &mut Worker<'_>,
-        _event: &WindowEvent,
-    ) -> std::result::Result<(), CoreError> {
+    fn update(&mut self, _w: &mut Worker<'_>, _event: &WindowEvent) -> Result<(), CoreError> {
         Ok(())
     }
 

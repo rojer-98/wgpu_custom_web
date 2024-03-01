@@ -153,8 +153,7 @@ impl RenderWorker for SimpleRenderTexture {
         let pipeline_layout = w
             .create_pipeline_layout()
             .label("Some pipeline layout")
-            .entries(bgl)
-            .entries(c_b.get_layout())
+            .entries(vec![bgl, c_b.get_layout()])
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder

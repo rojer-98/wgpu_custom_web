@@ -107,7 +107,7 @@ impl RenderWorker for SimpleCustomRender {
         let pipeline_layout = w
             .create_pipeline_layout()
             .label("Some pipeline layout")
-            .entries(s.get_layout())
+            .entry(s.get_layout())
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder

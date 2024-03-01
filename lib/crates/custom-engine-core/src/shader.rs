@@ -112,15 +112,11 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             .vs_entry_point
             .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?
             .to_string();
-        let vs_options = self
-            .vs_options
-            .ok_or(CoreError::EmptyVertexOptions(label.to_string()))?;
+        let vs_options = self.vs_options.unwrap_or(vec![]);
         let fs_options = self
             .fs_options
-            .ok_or(CoreError::EmptyFragmentOptions(label.to_string()))?
-            .into_iter()
-            .map(Some)
-            .collect();
+            .map(|options| options.into_iter().map(Some).collect())
+            .unwrap_or(vec![]);
 
         let source = self
             .source

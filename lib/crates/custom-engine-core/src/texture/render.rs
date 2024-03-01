@@ -10,7 +10,7 @@ use crate::{
     buffer::Buffer,
     errors::CoreError,
     texture::TextureKind,
-    traits::Builder,
+    traits::{Builder, ToBuilder},
 };
 
 #[derive(derivative::Derivative, Deref, DerefMut)]
@@ -24,11 +24,9 @@ pub struct RenderTexture {
     bind_group: Option<BindGroup>,
     bind_group_layout: Option<BindGroupLayout>,
 
-    dimensions: (u32, u32),
     #[derivative(Debug = "ignore")]
     data: Option<Vec<u8>>,
-    size: wgpu::Extent3d,
-
+    //format: TextureKind,
     #[deref]
     #[deref_mut]
     texture: wgpu::Texture,
@@ -45,6 +43,8 @@ pub struct RenderTextureBuilder<'a> {
     texture_desc: Option<wgpu::TextureDescriptor<'a>>,
     sampler_desc: Option<wgpu::SamplerDescriptor<'a>>,
     texture_view_desc: Option<wgpu::TextureViewDescriptor<'a>>,
+    dimension: Option<wgpu::TextureDimension>,
+    usage: Option<wgpu::TextureUsages>,
 
     bind_group_binding: Option<u32>,
     view_layout_entry: Option<wgpu::BindGroupLayoutEntry>,
@@ -75,6 +75,8 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             bind_group_binding: None,
             view_layout_entry: None,
             sampler_layout_entry: None,
+            usage: None,
+            dimension: None,
         }
     }
 
@@ -97,6 +99,8 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             bind_group_binding: None,
             sampler_layout_entry: None,
             view_layout_entry: None,
+            usage: None,
+            dimension: None,
         }
     }
 
@@ -116,6 +120,10 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
         let t_view_desc = self.texture_view_desc;
         let texture_size = self.texture_size;
         let format = self.format.into();
+        let dimension = self.dimension.unwrap_or(wgpu::TextureDimension::D2);
+        let usage = self
+            .usage
+            .unwrap_or(wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST);
 
         let bind_group_binding = self.bind_group_binding;
         let view_layout_entry = self
@@ -151,11 +159,8 @@ Build `{label}`:
         );
 
         let mut data = self.data.map(|d| d.to_vec());
-        let (texture, dimensions, size) = if let Some(t_d) = texture_desc {
-            let size = t_d.size;
-            let dimensions = (size.width, size.height);
-
-            (self.device.create_texture(&t_d), dimensions, size)
+        let texture = if let Some(t_d) = texture_desc {
+            self.device.create_texture(&t_d)
         } else {
             let dimensions = if let Some(d) = data.as_ref() {
                 let img = load_from_memory(&*d)?;
@@ -177,13 +182,13 @@ Build `{label}`:
                 size,
                 mip_level_count: 1,
                 sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
+                dimension,
                 format,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                usage,
                 view_formats: &[],
             });
 
-            (self.device.create_texture(&t_desc), dimensions, size)
+            self.device.create_texture(&t_desc)
         };
         let view = texture.create_view(&t_view_desc.unwrap_or_default());
 
@@ -227,9 +232,7 @@ Build `{label}`:
                 id,
                 view,
                 sampler,
-                dimensions,
                 data,
-                size,
                 texture,
                 bind_group: Some(bind_group),
                 bind_group_layout: Some(bind_group_layout),
@@ -240,8 +243,6 @@ Build `{label}`:
                 texture,
                 view,
                 sampler,
-                dimensions,
-                size,
                 data,
                 bind_group_layout: None,
                 bind_group: None,
@@ -253,6 +254,16 @@ Build `{label}`:
 impl<'a> RenderTextureBuilder<'a> {
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+
+    pub fn usage(mut self, usage: wgpu::TextureUsages) -> Self {
+        self.usage = Some(usage);
+        self
+    }
+
+    pub fn dimension(mut self, dimension: wgpu::TextureDimension) -> Self {
+        self.dimension = Some(dimension);
         self
     }
 
@@ -314,7 +325,36 @@ impl<'a> RenderTextureBuilder<'a> {
         self
     }
 }
+/*
+impl<'a> ToBuilder<'a> for RenderTexture {
+    type Builder = RenderTextureBuilder<'a>;
 
+    fn to_builder(self, device: &'a wgpu::Device) -> Self::Builder {
+        /*
+
+               let hdr_t = hdr_t_builder
+                   .label("HDR texture")
+                   .format(TextureKind::HDR)
+                   .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
+                   .texture_size(t_size)
+                   .sampler_desc(wgpu::SamplerDescriptor {
+                       address_mode_u: wgpu::AddressMode::ClampToEdge,
+                       address_mode_v: wgpu::AddressMode::ClampToEdge,
+                       address_mode_w: wgpu::AddressMode::ClampToEdge,
+                       mag_filter: wgpu::FilterMode::Nearest,
+                       min_filter: wgpu::FilterMode::Nearest,
+                       mipmap_filter: wgpu::FilterMode::Nearest,
+                       ..Default::default()
+                   })
+                   .bind_group_binding(0)
+                   .is_sampler(true)
+                   .build()?;
+        */
+
+        RenderTextureBuilder::new_indexed(device, self.id)
+    }
+}
+*/
 impl RenderTexture {
     pub fn bind_group(&self) -> Result<&BindGroup, CoreError> {
         self.bind_group
@@ -338,10 +378,11 @@ impl RenderTexture {
         if let Some(img_data) = self.data.as_ref() {
             let aspect = wgpu::TextureAspect::All;
             let components = self.format().components_with_aspect(aspect) as u32;
+            let size = self.size();
 
             info!(
                 "Store to memory: aspect {aspect:?}, components {components:?}, size: {:?}",
-                self.size
+                size
             );
 
             queue.write_texture(
@@ -354,10 +395,10 @@ impl RenderTexture {
                 img_data,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(components * self.dimensions.0),
-                    rows_per_image: Some(self.dimensions.1),
+                    bytes_per_row: Some(components * self.width()),
+                    rows_per_image: Some(self.height()),
                 },
-                self.size,
+                size,
             );
         }
     }
@@ -377,11 +418,11 @@ impl RenderTexture {
                 buffer: output_buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(components * self.dimensions.0),
-                    rows_per_image: Some(self.dimensions.1),
+                    bytes_per_row: Some(components * self.width()),
+                    rows_per_image: Some(self.height()),
                 },
             },
-            self.size,
+            self.size(),
         );
     }
 }

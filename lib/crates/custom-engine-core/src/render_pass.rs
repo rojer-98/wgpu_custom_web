@@ -35,6 +35,11 @@ pub struct RenderStage<'a> {
     color_attachments: Option<ColorAttachmentBuilder<'a>>,
     depth_stencil: Option<DepthStencilAttachmentBuilder<'a>>,
     query_set: Option<QuerySet>,
+
+    viewport: Option<ViewportRect>,
+    scissors: Option<ScissorsRect>,
+    blend_constant: Option<wgpu::Color>,
+    stencil_reference: Option<u32>,
 }
 
 impl<'a> RenderStage<'a> {
@@ -54,6 +59,11 @@ impl<'a> RenderStage<'a> {
             query_set: None,
             depth_stencil: None,
             color_attachments: None,
+
+            viewport: None,
+            scissors: None,
+            blend_constant: None,
+            stencil_reference: None,
         }
     }
 
@@ -112,6 +122,26 @@ impl<'a> RenderStage<'a> {
         self.bind_groups = Some(bind_groups);
         self
     }
+
+    pub fn viewport(mut self, viewport: ViewportRect) -> Self {
+        self.viewport = Some(viewport);
+        self
+    }
+
+    pub fn scissors(mut self, scissors: ScissorsRect) -> Self {
+        self.scissors = Some(scissors);
+        self
+    }
+
+    pub fn blend_constant(mut self, color: wgpu::Color) -> Self {
+        self.blend_constant = Some(color);
+        self
+    }
+
+    pub fn stencil_reference(mut self, index: u32) -> Self {
+        self.stencil_reference = Some(index);
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -135,11 +165,6 @@ pub struct RenderPass<'a> {
     label: Option<&'a str>,
     render_stages: BTreeMap<usize, RenderStage<'a>>,
 
-    viewport: Option<ViewportRect>,
-    scissors: Option<ScissorsRect>,
-    blend_constant: Option<wgpu::Color>,
-    stencil_reference: Option<u32>,
-
     copy_params: Option<CopyTextureParams<'a>>,
 
     device: &'a wgpu::Device,
@@ -151,42 +176,19 @@ impl<'a> RenderPass<'a> {
             id,
             device,
             label: None,
-            viewport: None,
-            scissors: None,
-            blend_constant: None,
-            stencil_reference: None,
             copy_params: None,
+
             render_stages: BTreeMap::default(),
         }
     }
 
-    pub fn copy_params(mut self, copy_params: CopyTextureParams<'a>) -> Self {
-        self.copy_params = Some(copy_params);
-        self
-    }
-
-    pub fn viewport(mut self, viewport: ViewportRect) -> Self {
-        self.viewport = Some(viewport);
-        self
-    }
-
-    pub fn scissors(mut self, scissors: ScissorsRect) -> Self {
-        self.scissors = Some(scissors);
-        self
-    }
-
-    pub fn blend_constant(mut self, color: wgpu::Color) -> Self {
-        self.blend_constant = Some(color);
-        self
-    }
-
-    pub fn stencil_reference(mut self, index: u32) -> Self {
-        self.stencil_reference = Some(index);
-        self
-    }
-
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+
+    pub fn copy_params(mut self, copy_params: CopyTextureParams<'a>) -> Self {
+        self.copy_params = Some(copy_params);
         self
     }
 
@@ -225,10 +227,6 @@ impl<'a> RenderPass<'a> {
         let render_pass_name = format!("Render pass: {id}");
 
         let label = self.label.unwrap_or(&render_pass_name);
-        let viewport = self.viewport;
-        let scissors = self.scissors;
-        let stencil_reference = self.stencil_reference;
-        let blend_constant = self.blend_constant;
         let copy_params = self.copy_params;
 
         let mut encoder = self
@@ -240,11 +238,7 @@ impl<'a> RenderPass<'a> {
         debug!(
             "
 Process `{label}`:
-    Viewport: {viewport:#?},
-    Scissors: {scissors:#?},
-    Stencil Reference: {stencil_reference:#?},
-    Blend Constant: {blend_constant:#?},
-    Copy Params: {copy_params:#?}"
+    "
         );
 
         for (i, r_s) in self.render_stages {
@@ -260,6 +254,10 @@ Process `{label}`:
                 color_attachments,
                 depth_stencil,
                 query_set,
+                viewport,
+                scissors,
+                blend_constant,
+                stencil_reference,
             } = r_s;
 
             let color_attachments = color_attachments
@@ -350,6 +348,11 @@ Process `render stage: {i}`
     Bind Groups: {bind_groups:#?},
     Entities: {entities:?},
     Instances: {instances:?},
+    Viewport: {viewport:#?},
+    Scissors: {scissors:#?},
+    Stencil Reference: {stencil_reference:#?},
+    Blend Constant: {blend_constant:#?},
+    Copy Params: {copy_params:#?}
 "
             );
 

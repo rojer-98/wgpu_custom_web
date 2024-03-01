@@ -22,6 +22,8 @@ pub enum ShaderKind {
     Custom,
     #[display(fmt = "texture")]
     Texture,
+    #[display(fmt = "hdr")]
+    HDR,
 }
 
 impl ShaderFiles {

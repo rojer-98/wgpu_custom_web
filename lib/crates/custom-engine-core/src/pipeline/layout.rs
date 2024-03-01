@@ -83,8 +83,15 @@ impl<'a> PipelineLayoutBuilder<'a> {
         self
     }
 
-    pub fn entries(mut self, bgl: &'a BindGroupLayout) -> Self {
+    pub fn entry(mut self, bgl: &'a BindGroupLayout) -> Self {
         self.entries.get_or_insert(vec![]).push(bgl.deref());
+        self
+    }
+
+    pub fn entries(mut self, bgls: Vec<&'a BindGroupLayout>) -> Self {
+        self.entries
+            .get_or_insert(vec![])
+            .extend(bgls.into_iter().map(|bgl| bgl.deref()).collect::<Vec<_>>());
         self
     }
 }

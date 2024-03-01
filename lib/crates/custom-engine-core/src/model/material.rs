@@ -101,6 +101,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
         let diffuse_texture = RenderTextureBuilder::new(self.device)
             .label(&format!("Diffuse texture: {name}"))
             .bytes(&diffuse_texture_data)
+            .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
             .build()?;
         let diff_view = &diffuse_texture.view;
         let diff_sampler =
@@ -136,6 +137,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
                 .label(&format!("Normal texture: {name}"))
                 .bytes(&data)
                 .format(TextureKind::NormalMap)
+                .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
                 .build()?;
 
             let norm_view = &normal_texture.view;
