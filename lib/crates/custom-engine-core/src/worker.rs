@@ -65,4 +65,8 @@ impl<'a> Worker<'a> {
             context,
         })
     }
+
+    pub fn into_context(self) -> Context {
+        self.context
+    }
 }

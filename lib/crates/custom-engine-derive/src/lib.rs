@@ -25,7 +25,7 @@ pub fn vertex_layout(item: TokenStream) -> TokenStream {
         }
     }
 
-    let res = quote! {
+    quote! {
         impl VertexLayout for #ident {
             const ATTRIBUTES: &'static [wgpu::VertexAttribute] = &wgpu::vertex_attr_array![#wgpu_attrs];
 
@@ -39,10 +39,7 @@ pub fn vertex_layout(item: TokenStream) -> TokenStream {
                 }
             }
         }
-    };
-    println!("{res}");
-
-    res.into()
+    }.into()
 }
 
 #[proc_macro_derive(Builder)]

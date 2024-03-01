@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use image::{ImageBuffer, Rgba};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use pollster::block_on;
 
 use crate::{
@@ -51,10 +51,17 @@ impl<'a> Worker<'a> {
         if new_size.0 > 0 && new_size.1 > 0 {
             self.size = new_size;
 
-            if let RuntimeKind::Winit(s_p) = &mut self.runtime_kind {
-                s_p.config.width = new_size.0;
-                s_p.config.height = new_size.1;
-                s_p.surface.configure(&self.device, &s_p.config);
+            match &mut self.runtime_kind {
+                RuntimeKind::Winit(s_p) => {
+                    s_p.config.width = new_size.0;
+                    s_p.config.height = new_size.1;
+                    s_p.surface.configure(&self.device, &s_p.config);
+                }
+                RuntimeKind::Texture(_, _) => {
+                    if let Err(e) = self.init_runtime_texture() {
+                        panic!("{e}");
+                    }
+                }
             }
         }
     }
@@ -211,7 +218,7 @@ impl<'a> Worker<'a> {
 
         match v {
             Some(View::Surface(s)) => s.present(),
-            Some(View::Texture(_, b)) => {
+            Some(View::Texture(rt, b)) => {
                 if let RuntimeKind::Texture(path_to, kind) = &self.runtime_kind {
                     let data = block_on(async { b.read_buffer_async(&self.device).await })?;
                     let i_b = ImageBuffer::<Rgba<u8>, _>::from_raw(self.size.0, self.size.1, data)
@@ -221,6 +228,8 @@ impl<'a> Worker<'a> {
                     debug!("Save texture to {save_path}");
                     i_b.save(save_path)?;
                 }
+
+                self.view = Some(View::Texture(rt, b));
             }
             _ => {}
         }
@@ -253,50 +262,51 @@ impl<'a> Worker<'a> {
     // Private helpers
     fn init(&mut self) -> Result<(), CoreError> {
         self.view = Some(match &self.runtime_kind {
-            RuntimeKind::Winit(s_p) => {
-                self.format = wgpu::TextureFormat::Bgra8UnormSrgb;
-
-                View::Surface(s_p.surface.get_current_texture()?)
-            }
+            RuntimeKind::Winit(s_p) => View::Surface(s_p.surface.get_current_texture()?),
             RuntimeKind::Texture(_, _) => {
-                let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-                let aspect = wgpu::TextureAspect::All;
-                let components = format.components_with_aspect(aspect) as u32;
-
-                let t = self
-                    .create_render_texture()
-                    .is_sampler(false)
-                    .texture_desc(wgpu::TextureDescriptor {
-                        size: wgpu::Extent3d {
-                            width: self.size.0,
-                            height: self.size.1,
-                            depth_or_array_layers: 1,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format,
-                        usage: wgpu::TextureUsages::COPY_SRC
-                            | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                        label: Some("Render Texture"),
-                        view_formats: &[format],
-                    })
-                    .build()?;
-                let b = self
-                    .create_buffer::<()>()
-                    .label("Render texture buffer")
-                    .binding(0)
-                    .size((self.size.0 * self.size.1 * components).into())
-                    .usage(wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ)
-                    .build()?;
-
-                self.format = format;
+                let (t, b) = self.init_runtime_texture()?;
 
                 View::Texture(t, b)
             }
         });
 
         Ok(())
+    }
+
+    fn init_runtime_texture(&mut self) -> Result<(RenderTexture, Buffer), CoreError> {
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let aspect = wgpu::TextureAspect::All;
+        let components = format.components_with_aspect(aspect) as u32;
+
+        let t = self
+            .create_render_texture()
+            .is_sampler(false)
+            .texture_desc(wgpu::TextureDescriptor {
+                size: wgpu::Extent3d {
+                    width: self.size.0,
+                    height: self.size.1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                label: Some("Render Texture"),
+                view_formats: &[format],
+            })
+            .build()?;
+        let b = self
+            .create_buffer::<()>()
+            .label("Render texture buffer")
+            .binding(0)
+            .size((self.size.0 * self.size.1 * components).into())
+            .usage(wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ)
+            .build()?;
+
+        self.format = format;
+
+        Ok((t, b))
     }
 
     fn update_buffer_data<T: bytemuck::Pod + bytemuck::Zeroable>(
