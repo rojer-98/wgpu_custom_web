@@ -24,6 +24,7 @@ pub struct Shader {
     pub fs_options: Vec<Option<wgpu::ColorTargetState>>,
     pub vs_entry_point: String,
     pub vs_options: Vec<wgpu::VertexBufferLayout<'static>>,
+    pub compute_entry_point: Option<String>,
 
     #[deref]
     #[deref_mut]
@@ -57,6 +58,7 @@ pub struct ShaderBuilder<'a> {
     vs_entry_point: Option<&'a str>,
     vs_options: Option<Vec<wgpu::VertexBufferLayout<'static>>>,
     source: Option<ShaderSource<'a>>,
+    compute_entry_point: Option<&'a str>,
 
     device: &'a wgpu::Device,
 }
@@ -77,6 +79,7 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             fs_options: None,
             vs_entry_point: None,
             vs_options: None,
+            compute_entry_point: None,
         }
     }
 
@@ -93,6 +96,7 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             fs_options: None,
             vs_entry_point: None,
             vs_options: None,
+            compute_entry_point: None,
         }
     }
 
@@ -117,6 +121,7 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             .fs_options
             .map(|options| options.into_iter().map(Some).collect())
             .unwrap_or(vec![]);
+        let compute_entry_point = self.compute_entry_point.map(String::from);
 
         let source = self
             .source
@@ -157,6 +162,7 @@ Build `{label}`:
             vs_entry_point,
             vs_options,
             inner_shader,
+            compute_entry_point,
         })
     }
 }
@@ -164,6 +170,11 @@ Build `{label}`:
 impl<'a> ShaderBuilder<'a> {
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+
+    pub fn compute_entry_point(mut self, compute_entry_point: &'a str) -> Self {
+        self.compute_entry_point = Some(compute_entry_point);
         self
     }
 

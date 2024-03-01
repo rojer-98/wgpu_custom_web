@@ -7,6 +7,30 @@ use log::debug;
 
 use crate::{errors::CoreError, pipeline::layout::PipelineLayout, shader::Shader, traits::Builder};
 
+#[derive(Debug)]
+pub enum InnerPipeline {
+    Render(wgpu::RenderPipeline),
+    Compute(wgpu::ComputePipeline),
+}
+
+impl InnerPipeline {
+    pub fn render(&self) -> Option<&wgpu::RenderPipeline> {
+        if let InnerPipeline::Render(r_p) = self {
+            return Some(r_p);
+        }
+
+        None
+    }
+
+    pub fn compute(&self) -> Option<&wgpu::ComputePipeline> {
+        if let InnerPipeline::Compute(c_p) = self {
+            return Some(c_p);
+        }
+
+        None
+    }
+}
+
 #[derive(Debug, Deref, DerefMut)]
 pub struct Pipeline {
     pub id: usize,
@@ -18,7 +42,7 @@ pub struct Pipeline {
 
     #[deref]
     #[deref_mut]
-    inner_pipeline: wgpu::RenderPipeline,
+    inner_pipeline: InnerPipeline,
 }
 
 pub struct PipelineBuilder<'a> {
@@ -30,6 +54,7 @@ pub struct PipelineBuilder<'a> {
     depth_stencil: Option<&'a wgpu::DepthStencilState>,
     multisample: Option<&'a wgpu::MultisampleState>,
     multiview: Option<u32>,
+    is_compute: bool,
 
     device: &'a wgpu::Device,
 }
@@ -51,6 +76,7 @@ impl<'a> Builder<'a> for PipelineBuilder<'a> {
             layout: None,
             label: None,
             id: None,
+            is_compute: false,
         }
     }
 
@@ -67,6 +93,7 @@ impl<'a> Builder<'a> for PipelineBuilder<'a> {
             shader: None,
             layout: None,
             label: None,
+            is_compute: false,
             id: Some(id),
         }
     }
@@ -79,6 +106,12 @@ impl<'a> Builder<'a> for PipelineBuilder<'a> {
         let pipeline_name = format!("Pipeline: {id}");
 
         let label = self.label.unwrap_or(&pipeline_name);
+        let layout = self
+            .layout
+            .ok_or(CoreError::EmptyLayout(label.to_string()))?;
+        let shader = self
+            .shader
+            .ok_or(CoreError::EmptyPipelineVertex(label.to_string()))?;
         let multiview = self.multiview.and_then(NonZeroU32::new);
         let multisample = *self
             .multisample
@@ -87,12 +120,6 @@ impl<'a> Builder<'a> for PipelineBuilder<'a> {
         let primitive = *self
             .primitive
             .ok_or(CoreError::EmptyPipelinePrimitive(label.to_string()))?;
-        let layout = self
-            .layout
-            .ok_or(CoreError::EmptyLayout(label.to_string()))?;
-        let shader = self
-            .shader
-            .ok_or(CoreError::EmptyPipelineVertex(label.to_string()))?;
 
         debug!(
             "
@@ -104,19 +131,35 @@ Build `{label}`:
     Layout: {layout:#?},
     Shader: {shader:#?}"
         );
+        let is_compute = self.is_compute;
 
-        let inner_pipeline = self
-            .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some(label),
-                layout: Some(layout),
-                multisample,
-                depth_stencil: depth_stencil.clone(),
-                primitive,
-                vertex: shader.make_vertex_state(),
-                fragment: Some(shader.make_fragment_state()),
-                multiview,
-            });
+        let inner_pipeline = if is_compute {
+            InnerPipeline::Compute(
+                self.device
+                    .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                        label: Some(label),
+                        layout: Some(layout),
+                        module: &shader,
+                        entry_point: &shader
+                            .compute_entry_point
+                            .as_ref()
+                            .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?,
+                    }),
+            )
+        } else {
+            InnerPipeline::Render(self.device.create_render_pipeline(
+                &wgpu::RenderPipelineDescriptor {
+                    label: Some(label),
+                    layout: Some(layout),
+                    multisample,
+                    depth_stencil: depth_stencil.clone(),
+                    primitive,
+                    vertex: shader.make_vertex_state(),
+                    fragment: Some(shader.make_fragment_state()),
+                    multiview,
+                },
+            ))
+        };
 
         Ok(Pipeline {
             id,
@@ -132,6 +175,11 @@ Build `{label}`:
 }
 
 impl<'a> PipelineBuilder<'a> {
+    pub fn is_compute(mut self, is_compute: bool) -> Self {
+        self.is_compute = is_compute;
+        self
+    }
+
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
         self

@@ -72,6 +72,10 @@ pub enum CoreError {
     EmptyEntities(usize),
     #[error("instances in `Render Stage {0}` is not set")]
     EmptyInstances(usize),
+    #[error("pipeline `{0}` is not render")]
+    NotRenderPipeline(String),
+    #[error("pipeline `{0}` is not compute")]
+    NotComputePipeline(String),
 
     // foreign errors
     #[error(transparent)]
