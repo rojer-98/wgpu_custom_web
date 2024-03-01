@@ -9,6 +9,7 @@ use crate::{
     },
     buffer::Buffer,
     errors::CoreError,
+    texture::TextureKind,
     traits::Builder,
 };
 
@@ -37,7 +38,7 @@ pub struct RenderTextureBuilder<'a> {
     id: Option<usize>,
     data: Option<&'a [u8]>,
     label: Option<&'a str>,
-    is_normal_map: bool,
+    format: TextureKind,
     is_sampler: bool,
     texture_size: Option<(u32, u32)>,
     depth_or_array_layers: u32,
@@ -63,7 +64,7 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             device,
             id: None,
             label: None,
-            is_normal_map: false,
+            format: TextureKind::Render,
             is_sampler: true,
             data: None,
             texture_desc: None,
@@ -85,7 +86,7 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             device,
             id: Some(id),
             label: None,
-            is_normal_map: false,
+            format: TextureKind::Render,
             is_sampler: true,
             data: None,
             texture_desc: None,
@@ -114,6 +115,7 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
         let sampler_desc = self.sampler_desc;
         let t_view_desc = self.texture_view_desc;
         let texture_size = self.texture_size;
+        let format = self.format.into();
 
         let bind_group_binding = self.bind_group_binding;
         let view_layout_entry = self
@@ -168,12 +170,6 @@ Build `{label}`:
                 width: dimensions.0,
                 height: dimensions.1,
                 depth_or_array_layers,
-            };
-
-            let format = if self.is_normal_map {
-                wgpu::TextureFormat::Rgba8Unorm
-            } else {
-                wgpu::TextureFormat::Rgba8UnormSrgb
             };
 
             let t_desc = texture_desc.unwrap_or(wgpu::TextureDescriptor {
@@ -265,8 +261,8 @@ impl<'a> RenderTextureBuilder<'a> {
         self
     }
 
-    pub fn is_normal_map(mut self, is_normal_map: bool) -> Self {
-        self.is_normal_map = is_normal_map;
+    pub fn format(mut self, format: TextureKind) -> Self {
+        self.format = format;
         self
     }
 
@@ -366,12 +362,7 @@ impl RenderTexture {
         }
     }
 
-    pub fn load_to_buffer(
-        &self,
-        queue: &wgpu::Queue,
-        mut encoder: wgpu::CommandEncoder,
-        output_buffer: &Buffer,
-    ) {
+    pub fn load_to_buffer(&self, encoder: &mut wgpu::CommandEncoder, output_buffer: &Buffer) {
         let aspect = wgpu::TextureAspect::All;
         let components = self.format().components_with_aspect(aspect) as u32;
 
@@ -392,7 +383,5 @@ impl RenderTexture {
             },
             self.size,
         );
-
-        queue.submit(Some(encoder.finish()));
     }
 }

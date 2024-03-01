@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use image::{ImageBuffer, Rgba};
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use pollster::block_on;
 
 use crate::{

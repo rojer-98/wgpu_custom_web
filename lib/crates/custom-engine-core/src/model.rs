@@ -337,19 +337,3 @@ struct ModelRaw {
     tangent: [f32; 3],
     bitangent: [f32; 3],
 }
-
-/*
-impl VertexLayout for ModelRaw {
-    const ATTRIBUTES: &'static [wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x3, 4 => Float32x3,];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem::size_of;
-
-        wgpu::VertexBufferLayout {
-            array_stride: size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: Self::ATTRIBUTES,
-        }
-    }
-}
-*/

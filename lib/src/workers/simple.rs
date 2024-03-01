@@ -52,6 +52,7 @@ impl RenderWorker for SimpleRender {
         let shift = 0.001;
         let data = VERTICES.to_vec();
 
+        let format = w.format();
         let sh_data = ShaderFiles::get_file_data(ShaderKind::Simple).unwrap();
         let shader = w
             .create_shader()
@@ -59,11 +60,7 @@ impl RenderWorker for SimpleRender {
             .vs_entry_point("vs_main")
             .vs_options(vec![Vertex::desc()])
             .fs_options(vec![wgpu::ColorTargetState {
-                format: if cfg!(target_arch = "wasm32") {
-                    wgpu::TextureFormat::Rgba8UnormSrgb
-                } else {
-                    wgpu::TextureFormat::Bgra8UnormSrgb
-                },
+                format,
                 blend: Some(wgpu::BlendState {
                     color: wgpu::BlendComponent::REPLACE,
                     alpha: wgpu::BlendComponent::REPLACE,
@@ -139,30 +136,27 @@ impl RenderWorker for SimpleRender {
         let vb = w.get_buffer_ref(*vb_id)?;
 
         let view = w.texture_view()?;
-        let r_p = w
-            .render_pass()
-            .label("Render Pass")
-            .color_attachments_builder(
-                ColorAttachmentBuilder::new()
-                    .label("Some color attach")
-                    .view(&view)
-                    .ops(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+        let r_p = w.render_pass().label("Render Pass").render_stage(
+            0,
+            RenderStage::new(&pipeline)
+                .color_attachments_builder(
+                    ColorAttachmentBuilder::new()
+                        .label("Some color attach")
+                        .view(&view)
+                        .ops(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
                         }),
-                        store: wgpu::StoreOp::Store,
-                    }),
-            )
-            .render_stage(
-                0,
-                RenderStage::new(&pipeline)
-                    .instances(0..1)
-                    .entities(0..42)
-                    .vertex_buffer(&vb),
-            );
+                )
+                .instances(0..1)
+                .entities(0..42)
+                .vertex_buffer(&vb),
+        );
 
         w.render(r_p)?;
         w.present()?;

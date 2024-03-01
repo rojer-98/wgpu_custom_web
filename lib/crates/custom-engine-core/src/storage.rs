@@ -9,7 +9,7 @@ use crate::{
     },
     buffer::{Buffer, BufferBuilder},
     errors::CoreError,
-    texture::{RenderTexture, RenderTextureBuilder},
+    texture::{RenderTexture, RenderTextureBuilder, TextureKind},
     traits::Builder,
 };
 
@@ -200,7 +200,7 @@ impl<'a> Builder<'a> for StoragesBuilder<'a> {
                     let texture = RenderTextureBuilder::new(self.device)
                         .label(name)
                         .texture_size((size, size))
-                        .is_normal_map(false)
+                        .format(TextureKind::Render)
                         .texture_view_desc(Default::default())
                         .texture_desc(wgpu::TextureDescriptor {
                             label: Some(name),

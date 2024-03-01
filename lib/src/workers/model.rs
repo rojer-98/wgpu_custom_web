@@ -249,47 +249,43 @@ impl RenderWorker for SimpleModelRender {
         let d_t = w
             .create_depth_texture()
             .label("Depth Texture")
-            .is_sampler(true)
             .texture_size(texture_size)
             .build()?;
         let d_t_view = d_t.view;
 
         let view = w.texture_view()?;
-        let r_p = w
-            .render_pass()
-            .label("Render Pass")
-            .depth_stencil_builder(
-                DepthStencilAttachmentBuilder::new()
-                    .label("Some depth attach")
-                    .view(&d_t_view)
-                    .depth_ops(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-            )
-            .color_attachments_builder(
-                ColorAttachmentBuilder::new()
-                    .label("Some color attach")
-                    .view(&view)
-                    .ops(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+        let r_p = w.render_pass().label("Render Pass").render_stage(
+            0,
+            RenderStage::new(&pipeline)
+                .depth_stencil_builder(
+                    DepthStencilAttachmentBuilder::new()
+                        .label("Some depth attach")
+                        .view(&d_t_view)
+                        .depth_ops(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
                         }),
-                        store: wgpu::StoreOp::Store,
-                    }),
-            )
-            .render_stage(
-                0,
-                RenderStage::new(&pipeline)
-                    .entities(0..1)
-                    .instances(0..30)
-                    .vertex_buffer(&vb)
-                    .bind_groups(vec![c.get_group()])
-                    .model(&m),
-            );
+                )
+                .color_attachments_builder(
+                    ColorAttachmentBuilder::new()
+                        .label("Some color attach")
+                        .view(&view)
+                        .ops(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                )
+                .entities(0..1)
+                .instances(0..30)
+                .vertex_buffer(&vb)
+                .bind_groups(vec![c.get_group()])
+                .model(&m),
+        );
 
         w.render(r_p)?;
         w.present()?;

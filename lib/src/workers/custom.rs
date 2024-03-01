@@ -165,31 +165,28 @@ impl RenderWorker for SimpleCustomRender {
         let s = w.get_storage_ref(*s_id)?;
 
         let view = w.texture_view()?;
-        let r_p = w
-            .render_pass()
-            .label("Render Pass")
-            .color_attachments_builder(
-                ColorAttachmentBuilder::new()
-                    .label("Some color attach")
-                    .view(&view)
-                    .ops(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+        let r_p = w.render_pass().label("Render Pass").render_stage(
+            0,
+            RenderStage::new(&pipeline)
+                .color_attachments_builder(
+                    ColorAttachmentBuilder::new()
+                        .label("Some color attach")
+                        .view(&view)
+                        .ops(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
                         }),
-                        store: wgpu::StoreOp::Store,
-                    }),
-            )
-            .render_stage(
-                0,
-                RenderStage::new(&pipeline)
-                    .instances(0..1)
-                    .entities(0..3)
-                    .vertex_buffer(&vb)
-                    .bind_groups(vec![s.get_group()]),
-            );
+                )
+                .instances(0..1)
+                .entities(0..3)
+                .vertex_buffer(&vb)
+                .bind_groups(vec![s.get_group()]),
+        );
 
         w.render(r_p)?;
         w.present()?;

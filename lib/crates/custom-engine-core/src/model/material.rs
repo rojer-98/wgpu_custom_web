@@ -3,7 +3,7 @@ use log::debug;
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
     errors::CoreError,
-    texture::{RenderTexture, RenderTextureBuilder},
+    texture::{RenderTexture, RenderTextureBuilder, TextureKind},
     traits::Builder,
 };
 
@@ -135,7 +135,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             let normal_texture = RenderTextureBuilder::new(self.device)
                 .label(&format!("Normal texture: {name}"))
                 .bytes(&data)
-                .is_normal_map(true)
+                .format(TextureKind::NormalMap)
                 .build()?;
 
             let norm_view = &normal_texture.view;

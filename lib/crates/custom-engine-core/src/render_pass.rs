@@ -19,9 +19,10 @@ use crate::{
     texture::CopyTextureParams,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RenderStage<'a> {
     pipeline: &'a Pipeline,
+
     vertex_buffer: Option<&'a Buffer>,
     index_buffer: Option<&'a Buffer>,
     bind_groups: Option<Vec<&'a BindGroup>>,
@@ -30,20 +31,51 @@ pub struct RenderStage<'a> {
     instances: Option<Range<u32>>,
     base_vertex: Option<i32>,
     entities: Option<Range<u32>>,
+
+    color_attachments: Option<ColorAttachmentBuilder<'a>>,
+    depth_stencil: Option<DepthStencilAttachmentBuilder<'a>>,
+    query_set: Option<QuerySet>,
 }
 
 impl<'a> RenderStage<'a> {
     pub fn new(pipeline: &'a Pipeline) -> Self {
         Self {
             pipeline,
-            instances: None,
-            base_vertex: None,
-            entities: None,
+
             model: None,
             bind_groups: None,
             index_buffer: None,
             vertex_buffer: None,
+
+            instances: None,
+            base_vertex: None,
+            entities: None,
+
+            query_set: None,
+            depth_stencil: None,
+            color_attachments: None,
         }
+    }
+
+    pub fn query_set(mut self, query_set: QuerySet) -> Self {
+        self.query_set = Some(query_set);
+        self
+    }
+
+    pub fn color_attachments_builder(
+        mut self,
+        color_attachments: ColorAttachmentBuilder<'a>,
+    ) -> Self {
+        self.color_attachments = Some(color_attachments);
+        self
+    }
+
+    pub fn depth_stencil_builder(
+        mut self,
+        depth_stencil: DepthStencilAttachmentBuilder<'a>,
+    ) -> Self {
+        self.depth_stencil = Some(depth_stencil);
+        self
     }
 
     pub fn instances(mut self, instances: Range<u32>) -> Self {
@@ -101,9 +133,6 @@ pub struct RenderPass<'a> {
     pub id: usize,
 
     label: Option<&'a str>,
-    color_attachments: Option<ColorAttachmentBuilder<'a>>,
-    depth_stencil: Option<DepthStencilAttachmentBuilder<'a>>,
-    query_set: Option<QuerySet>,
     render_stages: BTreeMap<usize, RenderStage<'a>>,
 
     viewport: Option<ViewportRect>,
@@ -121,22 +150,14 @@ impl<'a> RenderPass<'a> {
         Self {
             id,
             device,
-            depth_stencil: None,
             label: None,
-            color_attachments: None,
             viewport: None,
             scissors: None,
             blend_constant: None,
             stencil_reference: None,
             copy_params: None,
-            query_set: None,
             render_stages: BTreeMap::default(),
         }
-    }
-
-    pub fn query_set(mut self, query_set: QuerySet) -> Self {
-        self.query_set = Some(query_set);
-        self
     }
 
     pub fn copy_params(mut self, copy_params: CopyTextureParams<'a>) -> Self {
@@ -166,22 +187,6 @@ impl<'a> RenderPass<'a> {
 
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
-        self
-    }
-
-    pub fn color_attachments_builder(
-        mut self,
-        color_attachments: ColorAttachmentBuilder<'a>,
-    ) -> Self {
-        self.color_attachments = Some(color_attachments);
-        self
-    }
-
-    pub fn depth_stencil_builder(
-        mut self,
-        depth_stencil: DepthStencilAttachmentBuilder<'a>,
-    ) -> Self {
-        self.depth_stencil = Some(depth_stencil);
         self
     }
 
@@ -226,43 +231,6 @@ impl<'a> RenderPass<'a> {
         let blend_constant = self.blend_constant;
         let copy_params = self.copy_params;
 
-        let color_attachments = self
-            .color_attachments
-            .ok_or(CoreError::EmptyRenderPassColorAttachemnts(
-                label.to_string(),
-            ))?
-            .build()?
-            .into_render_pass();
-        let depth_stencil_attachment = self
-            .depth_stencil
-            .and_then(|d_s_b| d_s_b.build().ok())
-            .and_then(|d_s| d_s.into_render_pass());
-        let occlusion_query_set = self.query_set.as_deref();
-
-        /*
-            let query_set_desc_label = format!("QuerySet Descriptior Label: {label}");
-            let query_set_desc = wgpu::QuerySetDescriptor {
-                label: Some(&query_set_desc_label),
-                ty: wgpu::QueryType::Timestamp,
-                count: wgpu::QUERY_SET_MAX_QUERIES - 1,
-            };
-
-            let timestamp_query_set = self.device.create_query_set(&query_set_desc);
-            let timestamp_writes = Some(wgpu::RenderPassTimestampWrites {
-                query_set: &timestamp_query_set,
-                beginning_of_pass_write_index: Some(0),
-                end_of_pass_write_index: None,
-            });
-
-            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some(label),
-                color_attachments: &[color_attachments],
-                timestamp_writes,
-                occlusion_query_set,
-                depth_stencil_attachment,
-            })
-        */
-
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -279,7 +247,60 @@ Process `{label}`:
     Copy Params: {copy_params:#?}"
         );
 
-        {
+        for (i, r_s) in self.render_stages {
+            let RenderStage {
+                pipeline,
+                vertex_buffer,
+                index_buffer,
+                bind_groups,
+                instances,
+                model,
+                entities,
+                base_vertex,
+                color_attachments,
+                depth_stencil,
+                query_set,
+            } = r_s;
+
+            let color_attachments = color_attachments
+                .ok_or(CoreError::EmptyRenderPassColorAttachemnts(
+                    label.to_string(),
+                ))?
+                .build()?
+                .into_render_pass();
+            let depth_stencil_attachment = depth_stencil
+                .and_then(|d_s_b| d_s_b.build().ok())
+                .and_then(|d_s| d_s.into_render_pass());
+            let occlusion_query_set = query_set.as_deref();
+
+            /*
+                let query_set_desc_label = format!("QuerySet Descriptior Label: {label}");
+                let query_set_desc = wgpu::QuerySetDescriptor {
+                    label: Some(&query_set_desc_label),
+                    ty: wgpu::QueryType::Timestamp,
+                    count: wgpu::QUERY_SET_MAX_QUERIES - 1,
+                };
+
+                let timestamp_query_set = self.device.create_query_set(&query_set_desc);
+                let timestamp_writes = Some(wgpu::RenderPassTimestampWrites {
+                    query_set: &timestamp_query_set,
+                    beginning_of_pass_write_index: Some(0),
+                    end_of_pass_write_index: None,
+                });
+
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some(label),
+                    color_attachments: &[color_attachments],
+                    timestamp_writes,
+                    occlusion_query_set,
+                    depth_stencil_attachment,
+                })
+            */
+
+            let entities = entities.ok_or(CoreError::EmptyEntities(i))?;
+            let instances = instances.ok_or(CoreError::EmptyInstances(i))?;
+            let indexed = r_s.index_buffer.is_some();
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(label),
                 color_attachments: &[color_attachments],
@@ -288,54 +309,39 @@ Process `{label}`:
                 depth_stencil_attachment,
             });
 
-            for (i, r_s) in self.render_stages {
-                let RenderStage {
-                    pipeline,
-                    vertex_buffer,
-                    index_buffer,
-                    bind_groups,
-                    instances,
-                    model,
-                    entities,
-                    base_vertex,
-                } = r_s;
-                let entities = entities.ok_or(CoreError::EmptyEntities(i))?;
-                let instances = instances.ok_or(CoreError::EmptyInstances(i))?;
-                let indexed = r_s.index_buffer.is_some();
+            if let Some(vb) = vertex_buffer.as_ref() {
+                render_pass.set_vertex_buffer(vb.binding, vb.slice(..));
+            }
+            if let Some(ib) = index_buffer.as_ref() {
+                render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
+            }
 
-                if let Some(vb) = vertex_buffer.as_ref() {
-                    render_pass.set_vertex_buffer(vb.binding, vb.slice(..));
-                }
-                if let Some(ib) = index_buffer.as_ref() {
-                    render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint16);
-                }
+            if let Some(b_gs) = bind_groups.as_ref() {
+                b_gs.iter()
+                    .for_each(|bg| render_pass.set_bind_group(bg.binding, bg, &[]));
+            }
+            render_pass.set_pipeline(pipeline);
+            if let Some(v) = viewport.as_ref() {
+                let (x, y) = v.coords;
+                let (w, h) = v.size;
 
-                if let Some(b_gs) = bind_groups.as_ref() {
-                    b_gs.iter()
-                        .for_each(|bg| render_pass.set_bind_group(bg.binding, bg, &[]));
-                }
-                render_pass.set_pipeline(pipeline);
-                if let Some(v) = viewport.as_ref() {
-                    let (x, y) = v.coords;
-                    let (w, h) = v.size;
+                render_pass.set_viewport(x, y, w, h, v.min_depth, v.max_depth);
+            }
+            if let Some(s) = scissors.as_ref() {
+                let (x, y) = s.coords;
+                let (w, h) = s.size;
 
-                    render_pass.set_viewport(x, y, w, h, v.min_depth, v.max_depth);
-                }
-                if let Some(s) = scissors.as_ref() {
-                    let (x, y) = s.coords;
-                    let (w, h) = s.size;
+                render_pass.set_scissor_rect(x, y, w, h);
+            }
+            if let Some(b_c) = blend_constant.as_ref() {
+                render_pass.set_blend_constant(*b_c);
+            }
+            if let Some(s_r) = stencil_reference.as_ref() {
+                render_pass.set_stencil_reference(*s_r);
+            }
 
-                    render_pass.set_scissor_rect(x, y, w, h);
-                }
-                if let Some(b_c) = blend_constant.as_ref() {
-                    render_pass.set_blend_constant(*b_c);
-                }
-                if let Some(s_r) = stencil_reference.as_ref() {
-                    render_pass.set_stencil_reference(*s_r);
-                }
-
-                debug!(
-                    "
+            debug!(
+                "
 Process `render stage: {i}`
     Pipeline: {pipeline:#?},
     Model: {model:#?},
@@ -345,41 +351,38 @@ Process `render stage: {i}`
     Entities: {entities:?},
     Instances: {instances:?},
 "
-                );
+            );
 
-                if let Some(m) = model {
-                    let meshes = m.meshes();
-                    let materials = m.materials();
+            if let Some(m) = model {
+                let meshes = m.meshes();
+                let materials = m.materials();
 
-                    for mesh in meshes {
-                        let material = &materials[mesh.material];
-                        let bg = material.bind_group();
+                for mesh in meshes {
+                    let material = &materials[mesh.material];
+                    let bg = material.bind_group();
 
-                        let v_b = mesh.vertex_buffer();
-                        let i_b = mesh.index_buffer();
+                    let v_b = mesh.vertex_buffer();
+                    let i_b = mesh.index_buffer();
 
-                        render_pass.set_vertex_buffer(v_b.binding, v_b.slice(..));
-                        render_pass.set_index_buffer(i_b.slice(..), wgpu::IndexFormat::Uint32);
-                        render_pass.set_bind_group(bg.binding, &bg, &[]);
+                    render_pass.set_vertex_buffer(v_b.binding, v_b.slice(..));
+                    render_pass.set_index_buffer(i_b.slice(..), wgpu::IndexFormat::Uint32);
+                    render_pass.set_bind_group(bg.binding, &bg, &[]);
 
-                        render_pass.draw_indexed(0..mesh.num_elements, 0, instances.clone());
-                    }
-                } else if indexed {
-                    let base_vertex = base_vertex.unwrap_or(0);
-                    render_pass.draw_indexed(entities, base_vertex, instances);
-                } else {
-                    render_pass.draw(entities, instances);
+                    render_pass.draw_indexed(0..mesh.num_elements, 0, instances.clone());
                 }
+            } else if indexed {
+                let base_vertex = base_vertex.unwrap_or(0);
+                render_pass.draw_indexed(entities, base_vertex, instances);
+            } else {
+                render_pass.draw(entities, instances);
             }
         }
 
         if let Some(c_p) = copy_params {
-            let CopyTextureParams { buffer, texture } = c_p;
-
-            texture.load_to_buffer(queue, encoder, buffer);
-        } else {
-            queue.submit(once(encoder.finish()));
+            c_p.process(&mut encoder);
         }
+
+        queue.submit(once(encoder.finish()));
 
         Ok(())
     }

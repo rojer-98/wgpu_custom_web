@@ -1,9 +1,7 @@
 mod depth;
-mod hdr;
 mod render;
 
 pub use depth::*;
-pub use hdr::*;
 pub use render::*;
 
 use derive_more::Constructor;
@@ -12,6 +10,7 @@ use crate::buffer::Buffer;
 
 #[derive(Debug)]
 pub enum TextureKind {
+    Surface,
     Render,
     NormalMap,
     Depth,
@@ -23,6 +22,13 @@ impl From<TextureKind> for wgpu::TextureFormat {
         use TextureKind::*;
 
         match value {
+            Surface => {
+                if cfg!(target_arch = "wasm32") {
+                    wgpu::TextureFormat::Rgba8UnormSrgb
+                } else {
+                    wgpu::TextureFormat::Bgra8UnormSrgb
+                }
+            }
             Render => wgpu::TextureFormat::Rgba8UnormSrgb,
             NormalMap => wgpu::TextureFormat::Rgba8Unorm,
             Depth => wgpu::TextureFormat::Depth32Float,
@@ -35,4 +41,12 @@ impl From<TextureKind> for wgpu::TextureFormat {
 pub struct CopyTextureParams<'a> {
     pub buffer: &'a Buffer,
     pub texture: &'a RenderTexture,
+}
+
+impl<'a> CopyTextureParams<'a> {
+    pub fn process(&self, encoder: &mut wgpu::CommandEncoder) {
+        let CopyTextureParams { buffer, texture } = self;
+
+        texture.load_to_buffer(encoder, buffer);
+    }
 }
