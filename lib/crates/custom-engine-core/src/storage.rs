@@ -234,7 +234,7 @@ impl<'a> Builder<'a> for StoragesBuilder<'a> {
             .entries_views(
                 views
                     .iter()
-                    .map(|(_, b, rt)| (*b, &rt.view))
+                    .map(|(_, b, rt)| (*b, rt.view()))
                     .collect::<Vec<_>>(),
             )
             .build()?;

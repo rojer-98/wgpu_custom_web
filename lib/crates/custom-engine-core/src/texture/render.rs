@@ -10,7 +10,7 @@ use crate::{
     buffer::Buffer,
     errors::CoreError,
     texture::TextureKind,
-    traits::{Builder, ToBuilder},
+    traits::Builder,
 };
 
 #[derive(derivative::Derivative, Deref, DerefMut)]
@@ -18,15 +18,14 @@ use crate::{
 pub struct RenderTexture {
     pub id: usize,
 
-    pub view: wgpu::TextureView,
-    pub sampler: Option<wgpu::Sampler>,
+    view: wgpu::TextureView,
+    sampler: Option<wgpu::Sampler>,
 
     bind_group: Option<BindGroup>,
     bind_group_layout: Option<BindGroupLayout>,
 
     #[derivative(Debug = "ignore")]
     data: Option<Vec<u8>>,
-    //format: TextureKind,
     #[deref]
     #[deref_mut]
     texture: wgpu::Texture,
@@ -36,7 +35,7 @@ pub struct RenderTextureBuilder<'a> {
     id: Option<usize>,
     data: Option<&'a [u8]>,
     label: Option<&'a str>,
-    format: TextureKind,
+    format: wgpu::TextureFormat,
     is_sampler: bool,
     texture_size: Option<(u32, u32)>,
     depth_or_array_layers: u32,
@@ -64,7 +63,7 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             device,
             id: None,
             label: None,
-            format: TextureKind::Render,
+            format: TextureKind::Render.into(),
             is_sampler: true,
             data: None,
             texture_desc: None,
@@ -88,7 +87,7 @@ impl<'a> Builder<'a> for RenderTextureBuilder<'a> {
             device,
             id: Some(id),
             label: None,
-            format: TextureKind::Render,
+            format: TextureKind::Render.into(),
             is_sampler: true,
             data: None,
             texture_desc: None,
@@ -272,8 +271,8 @@ impl<'a> RenderTextureBuilder<'a> {
         self
     }
 
-    pub fn format(mut self, format: TextureKind) -> Self {
-        self.format = format;
+    pub fn format<T: Into<wgpu::TextureFormat>>(mut self, format: T) -> Self {
+        self.format = format.into();
         self
     }
 
@@ -356,6 +355,19 @@ impl<'a> ToBuilder<'a> for RenderTexture {
 }
 */
 impl RenderTexture {
+    pub fn sampler(&self) -> Result<&wgpu::Sampler, CoreError> {
+        self.sampler
+            .as_ref()
+            .ok_or(CoreError::EmptyTextureSampler(format!(
+                "Render texture: {}",
+                self.id
+            )))
+    }
+
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+
     pub fn bind_group(&self) -> Result<&BindGroup, CoreError> {
         self.bind_group
             .as_ref()

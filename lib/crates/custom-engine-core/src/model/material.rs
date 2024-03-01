@@ -39,10 +39,12 @@ pub struct MaterialBuilder<'a> {
     diffuse_view_binding: Option<u32>,
     diffuse_sampler_binding: Option<u32>,
     diffuse_texture_data: Option<&'a [u8]>,
+    diffuse_format: wgpu::TextureFormat,
 
     normal_view_binding: Option<u32>,
     normal_sampler_binding: Option<u32>,
     normal_texture_data: Option<&'a [u8]>,
+    normal_format: wgpu::TextureFormat,
 
     device: &'a wgpu::Device,
 }
@@ -63,6 +65,8 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             diffuse_view_binding: None,
             diffuse_sampler_binding: None,
             diffuse_texture_data: None,
+            diffuse_format: TextureKind::Render.into(),
+            normal_format: TextureKind::NormalMap.into(),
             layout: None,
             device,
         }
@@ -82,6 +86,8 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             diffuse_texture_data: None,
             id: Some(id),
             layout: None,
+            diffuse_format: TextureKind::Render.into(),
+            normal_format: TextureKind::NormalMap.into(),
             device,
         }
     }
@@ -103,15 +109,8 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             .bytes(&diffuse_texture_data)
             .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
             .build()?;
-        let diff_view = &diffuse_texture.view;
-        let diff_sampler =
-            diffuse_texture
-                .sampler
-                .as_ref()
-                .ok_or(CoreError::EmptyTextureSampler(format!(
-                    "{}",
-                    diffuse_texture.id
-                )))?;
+        let diff_view = diffuse_texture.view();
+        let diff_sampler = diffuse_texture.sampler()?;
         let diffuse_view_binding = self
             .diffuse_view_binding
             .ok_or(CoreError::EmptyBinding(name.to_string()))?;
@@ -140,15 +139,8 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
                 .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
                 .build()?;
 
-            let norm_view = &normal_texture.view;
-            let norm_sampler =
-                normal_texture
-                    .sampler
-                    .as_ref()
-                    .ok_or(CoreError::EmptyTextureSampler(format!(
-                        "{}",
-                        normal_texture.id
-                    )))?;
+            let norm_view = normal_texture.view();
+            let norm_sampler = normal_texture.sampler()?;
             let normal_view_binding = self
                 .normal_view_binding
                 .ok_or(CoreError::EmptyBinding(name.to_string()))?;
@@ -224,6 +216,16 @@ impl<'a> MaterialBuilder<'a> {
 
     pub fn diffuse_view_binding(mut self, diffuse_view_binding: u32) -> Self {
         self.diffuse_view_binding = Some(diffuse_view_binding);
+        self
+    }
+
+    pub fn diffuse_format<T: Into<wgpu::TextureFormat>>(mut self, diffuse_format: T) -> Self {
+        self.diffuse_format = diffuse_format.into();
+        self
+    }
+
+    pub fn normal_format<T: Into<wgpu::TextureFormat>>(mut self, normal_format: T) -> Self {
+        self.normal_format = normal_format.into();
         self
     }
 }

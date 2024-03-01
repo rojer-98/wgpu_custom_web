@@ -1,3 +1,5 @@
+use std::{fs::read, path::Path};
+
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
@@ -34,6 +36,11 @@ pub struct SimpleModelRender {
 
     c_id: usize,
 
+    hdr_t_id: usize,
+    hdr_p_id: usize,
+    hdr_sh_id: usize,
+    hdr_pl_id: usize,
+
     camera: Camera,
     light: Light,
 }
@@ -51,8 +58,10 @@ impl RenderWorker for SimpleModelRender {
             .obj_file(obj_file)
             .diffuse_view_binding(0)
             .diffuse_sampler_binding(1)
+            .diffuse_format(TextureKind::HDR)
             .normal_view_binding(2)
             .normal_sampler_binding(3)
+            .normal_format(TextureKind::HDR)
             .mesh_vertex_binding(0)
             .build()?;
         w.load_model(&m);
@@ -144,79 +153,100 @@ impl RenderWorker for SimpleModelRender {
                 alpha_to_coverage_enabled: false,
             })
             .build()?;
-        /*
-                let (hdr_sh_id, hdr_sh_builder) = w.create_shader_id();
-                let sh_data = ShaderFiles::get_file_data(ShaderKind::HDR).unwrap();
-                let hdr_sh = hdr_sh_builder
-                    .label("HDR shader")
-                    .vs_entry_point("vs_main")
-                    .fs_options(vec![wgpu::ColorTargetState {
-                        format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }])
-                    .fs_entry_point("fs_main")
-                    .source(sh_data)
-                    .build()?;
 
-                let t_size = w.size();
-                let (hdr_t_id, hdr_t_builder) = w.create_render_texture_id();
-                let hdr_t = hdr_t_builder
-                    .label("HDR texture")
-                    .format(TextureKind::HDR)
-                    .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
-                    .texture_size(t_size)
-                    .sampler_desc(wgpu::SamplerDescriptor {
-                        address_mode_u: wgpu::AddressMode::ClampToEdge,
-                        address_mode_v: wgpu::AddressMode::ClampToEdge,
-                        address_mode_w: wgpu::AddressMode::ClampToEdge,
-                        mag_filter: wgpu::FilterMode::Nearest,
-                        min_filter: wgpu::FilterMode::Nearest,
-                        mipmap_filter: wgpu::FilterMode::Nearest,
-                        ..Default::default()
-                    })
-                    .bind_group_binding(0)
-                    .is_sampler(true)
-                    .build()?;
+        let (hdr_sh_id, hdr_sh_builder) = w.create_shader_id();
+        let sh_data = ShaderFiles::get_file_data(ShaderKind::HDR).unwrap();
+        let hdr_sh = hdr_sh_builder
+            .label("HDR shader")
+            .vs_entry_point("vs_main")
+            .fs_options(vec![wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }])
+            .fs_entry_point("fs_main")
+            .source(sh_data)
+            .build()?;
 
-                let hdr_bg = hdr_t.bind_group()?;
-                let hdr_bgl = hdr_t.bind_group_layout()?;
+        let t_size = w.size();
+        let (hdr_t_id, hdr_t_builder) = w.create_render_texture_id();
+        let hdr_t = hdr_t_builder
+            .label("HDR texture")
+            .format(format)
+            .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
+            .texture_size(t_size)
+            .view_layout_entry(wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    // The Rgba16Float format cannot be filtered
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            })
+            .sampler_layout_entry(wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            })
+            .sampler_desc(wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Nearest,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            })
+            .bind_group_binding(0)
+            .is_sampler(true)
+            .build()?;
 
-                let (hdr_pl_id, hdr_pl_builder) = w.create_pipeline_layout_id();
-                let hdr_pl = hdr_pl_builder
-                    .label("HDR pipeline layout")
-                    .entry(hdr_bgl)
-                    .build()?;
+        let hdr_bgl = hdr_t.bind_group_layout()?;
 
-                let (hdr_p_id, hdr_p_builder) = w.create_pipeline_id();
-                let hdr_p = hdr_p_builder
-                    .layout(&hdr_pl)
-                    .shader(&hdr_sh)
-                    .primitive(&wgpu::PrimitiveState {
-                        topology: wgpu::PrimitiveTopology::TriangleList,
-                        strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
-                        cull_mode: Some(wgpu::Face::Back),
-                        polygon_mode: wgpu::PolygonMode::Fill,
-                        unclipped_depth: false,
-                        conservative: false,
-                    })
-                    .multisample(&wgpu::MultisampleState {
-                        count: 1,
-                        mask: !0,
-                        alpha_to_coverage_enabled: false,
-                    })
-                    .build()?;
-        */
+        let (hdr_pl_id, hdr_pl_builder) = w.create_pipeline_layout_id();
+        let hdr_pl = hdr_pl_builder
+            .label("HDR pipeline layout")
+            .entry(hdr_bgl)
+            .build()?;
+
+        let (hdr_p_id, hdr_p_builder) = w.create_pipeline_id();
+        let hdr_p = hdr_p_builder
+            .layout(&hdr_pl)
+            .shader(&hdr_sh)
+            .primitive(&wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            })
+            .multisample(&wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            })
+            .build()?;
+
         w.add_pipeline(pipeline);
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
         w.add_model(m);
         w.add_buffer(v_b);
         w.add_uniform(c_b);
+
+        w.add_render_texture(hdr_t);
+        w.add_shader(hdr_sh);
+        w.add_pipeline_layout(hdr_pl);
+        w.add_pipeline(hdr_p);
 
         Ok(Self {
             c_id,
@@ -225,6 +255,11 @@ impl RenderWorker for SimpleModelRender {
             sh_id,
             m_id,
             vb_id,
+
+            hdr_t_id,
+            hdr_p_id,
+            hdr_sh_id,
+            hdr_pl_id,
 
             light,
             camera,
@@ -303,6 +338,8 @@ impl RenderWorker for SimpleModelRender {
             p_id,
             vb_id,
             c_id,
+            hdr_p_id,
+            hdr_t_id,
             ..
         } = self;
 
@@ -310,6 +347,12 @@ impl RenderWorker for SimpleModelRender {
         let m = w.get_model_ref(*m_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
         let c = w.get_uniform_ref(*c_id)?;
+
+        let hdr_pipeline = w.get_pipeline_ref(*hdr_p_id)?;
+        let hdr_texture = w.get_render_texture_ref(*hdr_t_id)?;
+
+        let hdr_bind_group = hdr_texture.bind_group()?;
+        let hdr_t_view = hdr_texture.view();
 
         let texture_size = w.size();
         let d_t = w
@@ -320,38 +363,62 @@ impl RenderWorker for SimpleModelRender {
         let d_t_view = d_t.view;
 
         let view = w.texture_view()?;
-        let r_p = w.render_pass().label("Render Pass").render_stage(
-            0,
-            RenderStage::new(&pipeline)
-                .depth_stencil_builder(
-                    DepthStencilAttachmentBuilder::new()
-                        .label("Some depth attach")
-                        .view(&d_t_view)
-                        .depth_ops(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                )
-                .color_attachments_builder(
-                    ColorAttachmentBuilder::new()
-                        .label("Some color attach")
-                        .view(&view)
-                        .ops(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
+        let r_p = w
+            .render_pass()
+            .label("Render Pass")
+            .render_stage(
+                0,
+                RenderStage::new(&pipeline)
+                    .depth_stencil_builder(
+                        DepthStencilAttachmentBuilder::new()
+                            .label("Some depth attach")
+                            .view(&d_t_view)
+                            .depth_ops(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: wgpu::StoreOp::Store,
                             }),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                )
-                .entities(0..1)
-                .instances(0..30)
-                .vertex_buffer(&vb)
-                .bind_groups(vec![c.get_group()])
-                .model(&m),
-        );
+                    )
+                    .color_attachments_builder(
+                        ColorAttachmentBuilder::new()
+                            .label("Some color attach")
+                            .view(hdr_t_view)
+                            .ops(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.1,
+                                    g: 0.2,
+                                    b: 0.3,
+                                    a: 1.0,
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            }),
+                    )
+                    .entities(0..1)
+                    .instances(0..30)
+                    .vertex_buffer(&vb)
+                    .bind_groups(vec![c.get_group()])
+                    .model(&m),
+            )
+            .render_stage(
+                1,
+                RenderStage::new(&hdr_pipeline)
+                    .color_attachments_builder(
+                        ColorAttachmentBuilder::new()
+                            .label("Some color attach")
+                            .view(&view)
+                            .ops(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.1,
+                                    g: 0.2,
+                                    b: 0.3,
+                                    a: 1.0,
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            }),
+                    )
+                    .bind_groups(vec![hdr_bind_group])
+                    .instances(0..1)
+                    .entities(0..3),
+            );
 
         w.render(r_p)?;
         w.present()?;
