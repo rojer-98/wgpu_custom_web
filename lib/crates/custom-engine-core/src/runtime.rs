@@ -56,7 +56,7 @@ impl<'a> Runtime<'a> {
             ..Default::default()
         });
 
-        let surface = window.map(|w| instance.create_surface(w).ok()).flatten();
+        let surface = window.and_then(|w| instance.create_surface(w).ok());
 
         let power_preference = wgpu::PowerPreference::default();
         let adapter = block_on(async {

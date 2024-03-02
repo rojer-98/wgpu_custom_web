@@ -143,7 +143,7 @@ Build `{label}`:
                     .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                         label: Some(label),
                         layout: Some(layout),
-                        module: &c_s,
+                        module: c_s,
                         entry_point: c_s
                             .compute_entry_point
                             .as_ref()
