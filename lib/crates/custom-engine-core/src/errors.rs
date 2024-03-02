@@ -76,6 +76,10 @@ pub enum CoreError {
     NotRenderPipeline(String),
     #[error("pipeline `{0}` is not compute")]
     NotComputePipeline(String),
+    #[error("shader `{0}` is not render")]
+    NotRenderShader(String),
+    #[error("shader `{0}` is not compute")]
+    NotComputeShader(String),
 
     // foreign errors
     #[error(transparent)]

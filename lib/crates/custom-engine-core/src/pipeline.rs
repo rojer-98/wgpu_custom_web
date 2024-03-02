@@ -134,19 +134,27 @@ Build `{label}`:
         let is_compute = self.is_compute;
 
         let inner_pipeline = if is_compute {
+            let c_s = shader
+                .compute()
+                .ok_or(CoreError::NotComputeShader(label.to_string()))?;
+
             InnerPipeline::Compute(
                 self.device
                     .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                         label: Some(label),
                         layout: Some(layout),
-                        module: &shader,
-                        entry_point: &shader
+                        module: &c_s,
+                        entry_point: c_s
                             .compute_entry_point
                             .as_ref()
                             .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?,
                     }),
             )
         } else {
+            let r_s = shader
+                .render()
+                .ok_or(CoreError::NotRenderShader(label.to_string()))?;
+
             InnerPipeline::Render(self.device.create_render_pipeline(
                 &wgpu::RenderPipelineDescriptor {
                     label: Some(label),
@@ -154,8 +162,8 @@ Build `{label}`:
                     multisample,
                     depth_stencil: depth_stencil.clone(),
                     primitive,
-                    vertex: shader.make_vertex_state(),
-                    fragment: Some(shader.make_fragment_state()),
+                    vertex: r_s.make_vertex_state(),
+                    fragment: Some(r_s.make_fragment_state()),
                     multiview,
                 },
             ))

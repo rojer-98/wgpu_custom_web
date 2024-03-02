@@ -568,18 +568,18 @@ impl Context {
     // Shader
     #[inline]
     pub fn add_shader(&mut self, sh: Shader) {
-        if self.shaders.contains_key(&sh.id) {
-            warn!("Shader with id: {} exist in `context`", sh.id);
+        if self.shaders.contains_key(&sh.id()) {
+            warn!("Shader with id: {} exist in `context`", sh.id());
         } else {
-            let _ = self.ids.insert(sh.id);
-            let _ = self.shaders.insert(sh.id, sh);
+            let _ = self.ids.insert(sh.id());
+            let _ = self.shaders.insert(sh.id(), sh);
         }
     }
 
     #[inline]
     pub fn replace_shader(&mut self, id: usize, mut sh: Shader) -> Result<(), CoreError> {
         if self.shaders.contains_key(&id) {
-            sh.id = id;
+            *(sh.id_mut()) = id;
             *(self.get_shader_mut(id)?) = sh;
         } else {
             warn!("Shader with id: {id} doesn't exist in `context`",);
