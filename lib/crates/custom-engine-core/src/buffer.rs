@@ -72,8 +72,9 @@ impl Buffer {
 
         device.poll(wgpu::Maintain::Wait);
         rx.recv_async().await??;
+        self.write_buffer(data);
 
-        Ok(self.write_buffer(data))
+        Ok(())
     }
 }
 

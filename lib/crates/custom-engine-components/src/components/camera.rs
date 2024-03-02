@@ -144,13 +144,6 @@ impl Default for CameraController {
 }
 
 impl CameraController {
-    fn new(speed: f32) -> Self {
-        Self {
-            speed,
-            ..Default::default()
-        }
-    }
-
     fn process_events(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::KeyboardInput { event, .. } => {

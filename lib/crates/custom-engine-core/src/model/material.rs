@@ -106,7 +106,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             .ok_or(CoreError::EmptyDiffuseTexture(name.to_string()))?;
         let diffuse_texture = RenderTextureBuilder::new(self.device)
             .label(&format!("Diffuse texture: {name}"))
-            .bytes(&diffuse_texture_data)
+            .bytes(diffuse_texture_data)
             .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
             .build()?;
         let diff_view = diffuse_texture.view();
@@ -126,7 +126,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
         let bind_group_name = format!("Bind group of: {name}");
         let bind_group = BindGroupBuilder::new(self.device)
             .label(&bind_group_name)
-            .layout(&layout)
+            .layout(layout)
             .binding(0)
             .entries_view(diffuse_view_binding, diff_view)
             .entries_sampler(diffuse_sampler_binding, diff_sampler);

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::info;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
 #[cfg(not(target_arch = "wasm32"))]
@@ -48,7 +49,7 @@ impl EngineRunner {
                 console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
             } else {
                 if let Some(logger) = self.config.logger.as_ref() {
-                    let _ = log4rs::init_file(logger, Default::default())?;
+                    log4rs::init_file(logger, Default::default())?;
                 } else {
                     let stdout = ConsoleAppender::builder()
                         .encoder(Box::new(PatternEncoder::new(
@@ -128,6 +129,20 @@ impl EngineRunner {
                     }
                     WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                         worker_surface.resize_by_scale(*scale_factor)
+                    }
+
+                    WindowEvent::CursorMoved { .. } => {
+                        //info!("{position:?}");
+                    }
+                    WindowEvent::Touch(t) => {
+                        info!("{:?}", t.location);
+                    }
+                    WindowEvent::MouseInput {
+                        device_id: _,
+                        state,
+                        button,
+                    } => {
+                        info!("{state:?}, {button:?}");
                     }
 
                     WindowEvent::CloseRequested

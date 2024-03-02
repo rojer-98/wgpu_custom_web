@@ -12,4 +12,6 @@ pub enum EngineError {
     Utf8Error(#[from] std::str::Utf8Error),
     #[error(transparent)]
     CoreError(#[from] custom_engine_core::errors::CoreError),
+    #[error(transparent)]
+    EventLoopError(#[from] winit::error::EventLoopError),
 }

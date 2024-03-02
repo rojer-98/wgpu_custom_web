@@ -1,8 +1,5 @@
 use cgmath::Vector3;
-use winit::{
-    event::WindowEvent,
-    keyboard::{Key, NamedKey},
-};
+use winit::{event::WindowEvent, keyboard::Key};
 
 use crate::traits::Component;
 
@@ -113,13 +110,6 @@ impl Default for LightController {
 }
 
 impl LightController {
-    fn new(speed: f32) -> Self {
-        Self {
-            speed,
-            ..Default::default()
-        }
-    }
-
     fn process_events(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::KeyboardInput { event, .. } => {

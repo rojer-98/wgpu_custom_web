@@ -161,7 +161,7 @@ impl RenderWorker for SimpleRender {
         w.render(r_p)?;
         w.present()?;
 
-        if let Ok(_) = w.update_buffer(*vb_id, 0, &self.data) {
+        if w.update_buffer(*vb_id, 0, &self.data).is_ok() {
             self.data.extend(&vec![
                 Vertex {
                     position: [0.0 - self.shift, 0.5 + self.shift, 0.0],

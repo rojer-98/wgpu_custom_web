@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::mem::size_of_val;
 
 use image::{ImageBuffer, Rgba};
 use log::{debug, info, warn};
@@ -75,16 +75,16 @@ impl<'a> Worker<'a> {
     pub fn render(&self, render_pass: RenderPass<'_>) -> Result<(), CoreError> {
         if let Some(View::Texture(t, b)) = self.view.as_ref() {
             render_pass
-                .copy_params(CopyTextureParams::new(&b, &t))
-                .render(&self.queue)
+                .copy_params(CopyTextureParams::new(b, t))
+                .render(self.queue)
         } else {
-            render_pass.render(&self.queue)
+            render_pass.render(self.queue)
         }
     }
 
     #[inline]
     pub fn render_pass(&self) -> RenderPass<'_> {
-        RenderPass::new(&self.device, 0)
+        RenderPass::new(self.device, 0)
     }
 
     // Helpers
@@ -316,13 +316,13 @@ impl<'a> Worker<'a> {
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let buffer_size = b.size();
-        let data_len = ((data.len() * size_of::<T>()) as u64) + offset;
+        let data_len = (size_of_val(data) as u64) + offset;
 
         if data_len > buffer_size {
             return Err(CoreError::WrongBufferSize);
         } else {
             self.queue
-                .write_buffer(&b, offset, bytemuck::cast_slice(data));
+                .write_buffer(b, offset, bytemuck::cast_slice(data));
         }
 
         Ok(())
