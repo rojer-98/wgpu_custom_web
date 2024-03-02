@@ -1,3 +1,5 @@
+#import simple_functions as Func
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
@@ -15,34 +17,12 @@ struct Size {
 @group(0) @binding(0)
 var<uniform> size: Size;
 
-fn to_shader_coord(model_position: vec3<f32>, size: vec4<f32>) -> vec3<f32> {
-  var position: vec3<f32>;
-  
-  let half_w = size.x / 2.; 
-  let half_h = size.y / 2.; 
-  let coord = model_position; 
-
-  if coord.x > half_w {
-    position.x = coord.x / half_w - 1.; 
-  } else {
-    position.x = -(1. - coord.x / half_w);
-  }
-
-  if coord.y > half_h {
-    position.y = -(coord.y / half_h - 1.);
-  } else {
-    position.y = 1. - coord.y /half_h; 
-  }
-
-  return position;
-}
-
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
   var out: VertexOutput;
 
   out.color = model.color;
-  out.clip_position = vec4<f32>(to_shader_coord(model.position, size.size), 1.0);
+  out.clip_position = vec4<f32>(Func::to_shader_coord(model.position, size.size), 1.0);
   
   return out;
 }

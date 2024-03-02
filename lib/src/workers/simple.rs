@@ -3,6 +3,7 @@ use custom_engine_core::{
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
     traits::{Builder, RenderWorker, VertexLayout},
+    uniform::UniformDescription,
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
@@ -23,15 +24,15 @@ struct Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
+        position: [1000.0, 150.5, 0.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
-        position: [-0.5, -0.5, 0.0],
+        position: [300.5, 500.5, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
-        position: [0.5, -0.5, 0.0],
+        position: [1000.5, 200.5, 0.0],
         color: [0.0, 0.0, 1.0],
     },
 ];
@@ -42,6 +43,7 @@ pub struct SimpleRender {
 
     vb_id: usize,
     p_id: usize,
+    c_id: usize,
 }
 
 impl RenderWorker for SimpleRender {
@@ -80,8 +82,22 @@ impl RenderWorker for SimpleRender {
             .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 
+        let c_data: [f32; 4] = [1200., 1600., 0., 0.];
+        let (c_id, c_b) = w.create_uniform_id();
+        let c = c_b
+            .name("Uniform block")
+            .bind_group_binding(0)
+            .entries(UniformDescription::new(
+                "Size",
+                0,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                &c_data,
+            ))
+            .build()?;
+
         let pipeline_layout = w
             .create_pipeline_layout()
+            .entry(c.get_layout())
             .label("Some pipeline layout")
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
@@ -105,6 +121,7 @@ impl RenderWorker for SimpleRender {
             })
             .build()?;
 
+        w.add_uniform(c);
         w.add_buffer(v_b);
         w.add_pipeline(pipeline);
         w.add_pipeline_layout(pipeline_layout);
@@ -113,6 +130,7 @@ impl RenderWorker for SimpleRender {
         Ok(Self {
             p_id,
             vb_id,
+            c_id,
             data,
             shift,
         })
@@ -130,10 +148,13 @@ impl RenderWorker for SimpleRender {
     }
 
     fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
-        let SimpleRender { vb_id, p_id, .. } = self;
+        let SimpleRender {
+            vb_id, p_id, c_id, ..
+        } = self;
 
         let pipeline = w.get_pipeline_ref(*p_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
+        let c = w.get_uniform_ref(*c_id)?;
 
         let view = w.texture_view()?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
@@ -155,6 +176,7 @@ impl RenderWorker for SimpleRender {
                 )
                 .instances(0..1)
                 .entities(0..42)
+                .bind_groups(vec![c.get_group()])
                 .vertex_buffer(&vb),
         );
 

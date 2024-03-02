@@ -1,7 +1,7 @@
 use anyhow::Result;
-use log::info;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
+use log::{error, info};
 #[cfg(not(target_arch = "wasm32"))]
 use log4rs::{
     append::{console::ConsoleAppender, file::FileAppender},
@@ -10,7 +10,7 @@ use log4rs::{
 };
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, KeyEvent, WindowEvent},
+    event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
     window::{Window, WindowBuilder},
@@ -21,6 +21,7 @@ use custom_engine_core::{
 };
 
 use crate::{
+    application::AppState,
     config::{EngineConfig, LoadConfig, WorkerKind},
     workers::{
         custom::SimpleCustomRender, model::SimpleModelRender, render_texture::SimpleRenderTexture,
@@ -96,6 +97,7 @@ impl EngineRunner {
         let (event_loop, window) = self.env_init()?;
 
         let runtime = Runtime::init(Some(&window))?;
+        let mut app_state = AppState::new();
         let mut worker_surface = runtime.worker_surface()?;
         let mut r = self.render_init(&mut worker_surface)?;
 
@@ -107,6 +109,7 @@ impl EngineRunner {
                 r.update(&mut worker_surface, event).unwrap();
 
                 match event {
+                    // Worker
                     WindowEvent::RedrawRequested => {
                         match r.render(&mut worker_surface) {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => {
@@ -118,7 +121,7 @@ impl EngineRunner {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
                                 control_flow.exit()
                             }
-                            Err(e) => println!("{e}"),
+                            Err(e) => error!("{e}"),
                             _ => {}
                         }
 
@@ -131,20 +134,17 @@ impl EngineRunner {
                         worker_surface.resize_by_scale(*scale_factor)
                     }
 
-                    WindowEvent::CursorMoved { .. } => {
-                        //info!("{position:?}");
+                    // Mouse
+                    WindowEvent::CursorMoved { position, .. } => {
+                        app_state.cursor_position = *position;
                     }
-                    WindowEvent::Touch(t) => {
-                        info!("{:?}", t.location);
-                    }
-                    WindowEvent::MouseInput {
-                        device_id: _,
-                        state,
-                        button,
-                    } => {
-                        info!("{state:?}, {button:?}");
+                    WindowEvent::MouseInput { state, .. } => {
+                        if let ElementState::Pressed = state {
+                            info!("{state:?}");
+                        }
                     }
 
+                    // Exit
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
                         event:
