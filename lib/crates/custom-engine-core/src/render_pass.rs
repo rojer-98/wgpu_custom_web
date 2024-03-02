@@ -200,6 +200,17 @@ Process `render stage: {index}`
                     b_gs.iter()
                         .for_each(|bg| compute_pass.set_bind_group(bg.binding, bg, &[]));
                 }
+                debug!(
+                    "
+Process `compute stage: {index}`
+    Pipeline: {pipeline:#?},
+    Bind Groups: {bind_groups:#?},
+    `x_dimension` dispatch: {x_dimension},
+    `y_dimension` dispatch: {y_dimension},
+    `z_dimension` dispatch: {z_dimension},
+"
+                );
+
                 compute_pass.dispatch_workgroups(x_dimension, y_dimension, z_dimension);
             }
         }
