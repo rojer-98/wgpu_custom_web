@@ -38,10 +38,20 @@ raw-window-handle = "0.6.0"
 # Log
 log = "0.4.20"
 
+# Net
+reqwest = "0.11.24"
+
 # Helpers
 derive_more = "0.99.17"
+cfg-if = "1"
 rand = "0.8.5"
 derivative = "2.2.0"
+
+web-sys = { version = "0.3.68", features = [ 
+  "Document",
+  "Window",
+  "Location",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = "0.19"

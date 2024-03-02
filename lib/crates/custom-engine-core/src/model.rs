@@ -14,6 +14,7 @@ use crate::{
         material::{Material, MaterialBuilder},
         mesh::{Mesh, MeshBuilder},
     },
+    texture::TextureKind,
     traits::{Builder, VertexLayout},
 };
 
@@ -61,9 +62,11 @@ pub struct ModelBuilder<'a> {
 
     diffuse_view_binding: Option<u32>,
     diffuse_sampler_binding: Option<u32>,
+    diffuse_format: wgpu::TextureFormat,
 
     normal_view_binding: Option<u32>,
     normal_sampler_binding: Option<u32>,
+    normal_format: wgpu::TextureFormat,
 
     device: &'a wgpu::Device,
 }
@@ -83,6 +86,8 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
             diffuse_view_binding: None,
             diffuse_sampler_binding: None,
             mesh_vertex_binding: None,
+            diffuse_format: TextureKind::Render.into(),
+            normal_format: TextureKind::NormalMap.into(),
             device,
         }
     }
@@ -99,6 +104,8 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
             diffuse_view_binding: None,
             diffuse_sampler_binding: None,
             mesh_vertex_binding: None,
+            diffuse_format: TextureKind::Render.into(),
+            normal_format: TextureKind::NormalMap.into(),
             device,
         }
     }
@@ -114,8 +121,11 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
             .obj_file
             .ok_or(CoreError::EmptyObjFile(model_name.clone()))?;
 
+        let diffuse_format = self.diffuse_format;
         let diffuse_view_binding = self.diffuse_view_binding.unwrap_or(0);
         let diffuse_sampler_binding = self.diffuse_sampler_binding.unwrap_or(1);
+
+        let normal_format = self.normal_format;
         let normal_view_binding = self.normal_view_binding.unwrap_or(2);
         let normal_sampler_binding = self.normal_sampler_binding.unwrap_or(3);
 
@@ -177,9 +187,11 @@ Proceed material: `{texture_name}:{i}`:
             let normal_texture_data = lm.files.normal_texture.as_ref().map(|d| d.as_slice());
 
             let material = MaterialBuilder::new(self.device)
+                .diffuse_format(diffuse_format)
                 .diffuse_texture_data(Some(diffuse_texture_data))
                 .diffuse_view_binding(diffuse_view_binding)
                 .diffuse_sampler_binding(diffuse_sampler_binding)
+                .normal_format(normal_format)
                 .normal_texture_data(normal_texture_data)
                 .normal_view_binding(normal_view_binding)
                 .normal_sampler_binding(normal_sampler_binding)
@@ -324,6 +336,16 @@ impl<'a> ModelBuilder<'a> {
         self.mesh_vertex_binding = Some(mesh_vertex_binding);
         self
     }
+
+    pub fn diffuse_format<T: Into<wgpu::TextureFormat>>(mut self, diffuse_format: T) -> Self {
+        self.diffuse_format = diffuse_format.into();
+        self
+    }
+
+    pub fn normal_format<T: Into<wgpu::TextureFormat>>(mut self, normal_format: T) -> Self {
+        self.normal_format = normal_format.into();
+        self
+    }
 }
 
 #[repr(C)]
@@ -337,19 +359,3 @@ struct ModelRaw {
     tangent: [f32; 3],
     bitangent: [f32; 3],
 }
-
-/*
-impl VertexLayout for ModelRaw {
-    const ATTRIBUTES: &'static [wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3, 3 => Float32x3, 4 => Float32x3,];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem::size_of;
-
-        wgpu::VertexBufferLayout {
-            array_stride: size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: Self::ATTRIBUTES,
-        }
-    }
-}
-*/

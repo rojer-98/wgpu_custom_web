@@ -153,8 +153,7 @@ impl RenderWorker for SimpleRenderTexture {
         let pipeline_layout = w
             .create_pipeline_layout()
             .label("Some pipeline layout")
-            .entries(bgl)
-            .entries(c_b.get_layout())
+            .entries(vec![bgl, c_b.get_layout()])
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder
@@ -226,31 +225,28 @@ impl RenderWorker for SimpleRenderTexture {
         let bg_c = c.get_group();
 
         let view = w.texture_view()?;
-        let r_p = w
-            .render_pass()
-            .label("Render Pass")
-            .color_attachments_builder(
-                ColorAttachmentBuilder::new()
-                    .label("Some color attach")
-                    .view(&view)
-                    .ops(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+        let r_p = w.render_pass().label("Render Pass").render_stage(
+            0,
+            RenderStage::new(&pipeline)
+                .color_attachments_builder(
+                    ColorAttachmentBuilder::new()
+                        .label("Some color attach")
+                        .view(&view)
+                        .ops(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.1,
+                                g: 0.2,
+                                b: 0.3,
+                                a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
                         }),
-                        store: wgpu::StoreOp::Store,
-                    }),
-            )
-            .render_stage(
-                0,
-                RenderStage::new(&pipeline)
-                    .instances(0..6)
-                    .entities(0..6)
-                    .vertex_buffer(&vb)
-                    .bind_groups(vec![bg_t, bg_c]),
-            );
+                )
+                .instances(0..6)
+                .entities(0..6)
+                .vertex_buffer(&vb)
+                .bind_groups(vec![bg_t, bg_c]),
+        );
 
         w.render(r_p)?;
         w.present()?;

@@ -410,4 +410,6 @@ impl<'a> Worker<'a> {
     pub fn take_depth_texture(&mut self, id: usize) -> Result<DepthTexture, CoreError> {
         self.context.take_depth_texture(id)
     }
+
+    // Process texture
 }

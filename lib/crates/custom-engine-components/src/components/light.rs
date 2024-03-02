@@ -127,22 +127,25 @@ impl LightController {
                 let is_pressed = event.state.is_pressed();
 
                 match keycode {
-                    Key::Named(NamedKey::ArrowUp) => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowLeft) => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowDown) => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowRight) => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
+                    Key::Character(s) => match s.as_str() {
+                        "w" => {
+                            self.is_forward_pressed = is_pressed;
+                            true
+                        }
+                        "a" => {
+                            self.is_left_pressed = is_pressed;
+                            true
+                        }
+                        "s" => {
+                            self.is_backward_pressed = is_pressed;
+                            true
+                        }
+                        "d" => {
+                            self.is_right_pressed = is_pressed;
+                            true
+                        }
+                        _ => false,
+                    },
                     _ => false,
                 }
             }

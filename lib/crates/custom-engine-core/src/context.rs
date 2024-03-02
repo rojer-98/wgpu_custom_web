@@ -26,6 +26,7 @@ pub struct Context {
     shaders: HashMap<usize, Shader>,
     render_textures: HashMap<usize, RenderTexture>,
     depth_textures: HashMap<usize, DepthTexture>,
+    process_textures: HashMap<usize, RenderTexture>,
     models: HashMap<usize, Model>,
     uniforms: HashMap<usize, Uniforms>,
     storages: HashMap<usize, Storages>,
@@ -564,6 +565,7 @@ impl Context {
             ))
     }
 
+    // Shader
     #[inline]
     pub fn add_shader(&mut self, sh: Shader) {
         if self.shaders.contains_key(&sh.id) {
@@ -617,6 +619,7 @@ impl Context {
             .ok_or(CoreError::ContextFieldIsNotExist("Shader".to_string(), id))
     }
 
+    // Render Texture
     #[inline]
     pub fn add_render_texture(&mut self, rt: RenderTexture) {
         if self.render_textures.contains_key(&rt.id) {
@@ -686,6 +689,7 @@ impl Context {
             ))
     }
 
+    // Depth Texture
     #[inline]
     pub fn add_depth_texture(&mut self, rt: DepthTexture) {
         if self.depth_textures.contains_key(&rt.id) {
@@ -751,6 +755,76 @@ impl Context {
             .remove(&id)
             .ok_or(CoreError::ContextFieldIsNotExist(
                 "Depth Texture".to_string(),
+                id,
+            ))
+    }
+
+    // Process Texture
+    #[inline]
+    pub fn add_process_texture(&mut self, rt: RenderTexture) {
+        if self.process_textures.contains_key(&rt.id) {
+            warn!("Process Texture with id: {} exist in `context`", rt.id);
+        } else {
+            let _ = self.ids.insert(rt.id);
+            let _ = self.process_textures.insert(rt.id, rt);
+        }
+    }
+
+    #[inline]
+    pub fn replace_process_texture(
+        &mut self,
+        id: usize,
+        mut rt: RenderTexture,
+    ) -> Result<(), CoreError> {
+        if self.process_textures.contains_key(&id) {
+            rt.id = id;
+            *(self.get_process_texture_mut(id)?) = rt;
+        } else {
+            warn!("Process Texture with id: {id} doesn't exist in `context`",);
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    pub fn get_process_texture(&self, id: usize) -> Result<&RenderTexture, CoreError> {
+        self.process_textures
+            .get(&id)
+            .ok_or(CoreError::ContextFieldIsNotExist(
+                "Process Texture".to_string(),
+                id,
+            ))
+    }
+
+    #[inline]
+    pub fn get_process_texture_mut(&mut self, id: usize) -> Result<&mut RenderTexture, CoreError> {
+        self.process_textures
+            .get_mut(&id)
+            .ok_or(CoreError::ContextFieldIsNotExist(
+                "Process Texture".to_string(),
+                id,
+            ))
+    }
+
+    #[inline]
+    pub fn get_process_texture_ref(&self, id: usize) -> Result<Ref<RenderTexture>, CoreError> {
+        let val = self
+            .process_textures
+            .get(&id)
+            .ok_or(CoreError::ContextFieldIsNotExist(
+                "Process Texture".to_string(),
+                id,
+            ))?;
+
+        Ok(Ref::new(val))
+    }
+
+    #[inline]
+    pub fn take_process_texture(&mut self, id: usize) -> Result<RenderTexture, CoreError> {
+        self.process_textures
+            .remove(&id)
+            .ok_or(CoreError::ContextFieldIsNotExist(
+                "Process Texture".to_string(),
                 id,
             ))
     }

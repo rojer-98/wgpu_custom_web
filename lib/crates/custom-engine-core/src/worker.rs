@@ -2,8 +2,11 @@ mod context_impls;
 mod inner;
 
 use crate::{
-    buffer::Buffer, context::Context, errors::CoreError, runtime::RuntimeKind,
-    texture::RenderTexture,
+    buffer::Buffer,
+    context::Context,
+    errors::CoreError,
+    runtime::RuntimeKind,
+    texture::{RenderTexture, TextureKind},
 };
 
 #[derive(Debug)]
@@ -49,8 +52,8 @@ impl<'a> Worker<'a> {
         context: Context,
     ) -> Result<Self, CoreError> {
         let format = match runtime_kind {
-            RuntimeKind::Winit(_) => wgpu::TextureFormat::Bgra8UnormSrgb,
-            RuntimeKind::Texture(_, _) => wgpu::TextureFormat::Rgba8UnormSrgb,
+            RuntimeKind::Winit(_) => TextureKind::Surface.into(),
+            RuntimeKind::Texture(_, _) => TextureKind::Render.into(),
         };
 
         Ok(Self {
