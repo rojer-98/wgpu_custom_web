@@ -1,7 +1,9 @@
 mod depth;
+mod hdr;
 mod render;
 
 pub use depth::*;
+pub use hdr::*;
 pub use render::*;
 
 use derive_more::Constructor;
