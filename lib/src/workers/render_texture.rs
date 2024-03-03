@@ -99,7 +99,7 @@ impl RenderWorker for SimpleRenderTexture {
                 "Camera",
                 0,
                 wgpu::ShaderStages::VERTEX,
-                &camera.data(),
+                &[camera.data()],
             ))
             .bind_group_binding(1)
             .build()?;
@@ -202,7 +202,7 @@ impl RenderWorker for SimpleRenderTexture {
 
     fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
         self.camera.update(event);
-        w.update_uniform(self.c_id, "Camera", &self.camera.data())?;
+        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
 
         Ok(())
     }

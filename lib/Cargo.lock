@@ -585,9 +585,11 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "custom-engine-core",
+ "custom-engine-derive",
  "derive_more",
  "rust-embed",
  "thiserror",
+ "wgpu",
  "winit",
 ]
 

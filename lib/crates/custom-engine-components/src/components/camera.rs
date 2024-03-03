@@ -29,8 +29,8 @@ impl Default for Camera {
     }
 }
 
-impl Component<1, CameraRaw> for Camera {
-    fn data(&self) -> [CameraRaw; 1] {
+impl Component<CameraRaw> for Camera {
+    fn data(&self) -> CameraRaw {
         const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
             1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0,
         );
@@ -41,15 +41,15 @@ impl Component<1, CameraRaw> for Camera {
         let view_proj: [[f32; 4]; 4] = (OPENGL_TO_WGPU_MATRIX * proj * view).into();
         let view_position: [f32; 4] = self.data.position().into();
 
-        [CameraRaw {
+        CameraRaw {
             view_position,
             view_proj,
-        }; 1]
+        }
     }
 
     fn update(&mut self, event: &WindowEvent) {
         if self.controller.process_events(event) {
-            self.data.update_camera(&self.controller);
+            self.data.update(&self.controller);
             self.controller.reset();
         }
     }
@@ -96,7 +96,7 @@ impl CameraData {
         self.eye.to_homogeneous()
     }
 
-    fn update_camera(&mut self, controller: &CameraController) {
+    fn update(&mut self, controller: &CameraController) {
         let forward = self.target - self.eye;
         let forward_norm = forward.normalize();
         let forward_mag = forward.magnitude();

@@ -27,19 +27,19 @@ impl Default for Light {
     }
 }
 
-impl Component<1, LightRaw> for Light {
-    fn data(&self) -> [LightRaw; 1] {
-        [LightRaw {
+impl Component<LightRaw> for Light {
+    fn data(&self) -> LightRaw {
+        LightRaw {
             position: self.data.position.into(),
             _padding: 0,
             color: self.data.color.into(),
             _padding2: 0,
-        }; 1]
+        }
     }
 
     fn update(&mut self, event: &WindowEvent) {
         if self.controller.process_events(event) {
-            self.data.update_camera(&self.controller);
+            self.data.update(&self.controller);
             self.controller.reset();
         }
     }
@@ -69,7 +69,7 @@ impl Default for LightData {
 }
 
 impl LightData {
-    fn update_camera(&mut self, controller: &LightController) {
+    fn update(&mut self, controller: &LightController) {
         let old_position = self.position;
         let shift_vec = if controller.is_forward_pressed {
             Vector3::new(0., 0., -0.05)

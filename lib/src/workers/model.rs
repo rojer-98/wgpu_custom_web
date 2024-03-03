@@ -85,13 +85,13 @@ impl RenderWorker for SimpleModelRender {
                 "Camera",
                 0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &camera.data(),
+                &[camera.data()],
             ))
             .entries(UniformDescription::new(
                 "Light",
                 1,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &light.data(),
+                &[light.data()],
             ))
             .bind_group_binding(1)
             .build()?;
@@ -427,8 +427,8 @@ impl RenderWorker for SimpleModelRender {
         self.camera.update(event);
         self.light.update(event);
 
-        w.update_uniform(self.c_id, "Camera", &self.camera.data())?;
-        w.update_uniform(self.c_id, "Light", &self.light.data())?;
+        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
+        w.update_uniform(self.c_id, "Light", &[self.light.data()])?;
 
         Ok(())
     }
