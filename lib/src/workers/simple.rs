@@ -38,8 +38,8 @@ pub struct SimpleRender {
 impl SimpleRender {
     pub fn click(&mut self, w: &mut Worker<'_>, app: &AppState) -> Result<(), EngineError> {
         self.data.click(Vector3::new(
-            app.cursor_position.x as f32,
-            app.cursor_position.y as f32,
+            app.click_position.x as f32,
+            app.click_position.y as f32,
             0.,
         ));
 
@@ -75,8 +75,12 @@ impl RenderWorker for SimpleRender {
             .fs_options(vec![wgpu::ColorTargetState {
                 format,
                 blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
             }])
@@ -93,8 +97,9 @@ impl RenderWorker for SimpleRender {
             .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 
+        let size = w.size();
         let c_data = UData {
-            size: [1200., 1600., 0., 0.],
+            size: [size.0 as f32, size.1 as f32, 0., 0.],
         };
         let (c_id, c_b) = w.create_uniform_id();
         let c = c_b
@@ -122,7 +127,7 @@ impl RenderWorker for SimpleRender {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -158,6 +163,17 @@ impl RenderWorker for SimpleRender {
     }
 
     fn update(&mut self, _w: &mut Worker<'_>, _event: &WindowEvent) -> Result<(), CoreError> {
+        Ok(())
+    }
+
+    fn resize(&mut self, w: &mut Worker<'_>) -> std::prelude::v1::Result<(), CoreError> {
+        let size = w.size();
+        let c_data = UData {
+            size: [size.0 as f32, size.1 as f32, 0., 0.],
+        };
+
+        w.update_uniform(self.c_id, "Controls", &[c_data])?;
+
         Ok(())
     }
 

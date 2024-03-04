@@ -128,22 +128,27 @@ impl EngineRunner {
                         window.request_redraw();
                     }
                     WindowEvent::Resized(new_size) => {
-                        worker_surface.resize_by_size((new_size.width, new_size.height))
+                        worker_surface.resize_by_size((new_size.width, new_size.height));
+                        r.resize(&mut worker_surface).unwrap();
                     }
                     WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                        worker_surface.resize_by_scale(*scale_factor)
+                        worker_surface.resize_by_scale(*scale_factor);
+                        r.resize(&mut worker_surface).unwrap();
                     }
 
                     // Mouse
                     WindowEvent::CursorMoved { position, .. } => {
                         app_state.cursor_position = *position;
-                        info!("{position:?}");
                     }
                     WindowEvent::MouseInput { state, .. } => {
-                        if let ElementState::Pressed = state {
-                            app_state.click_state = *state;
+                        app_state.click_state = *state;
+
+                        if state.is_pressed() {
                             app_state.click_position = app_state.cursor_position;
 
+                            app_state.clicked();
+
+                            let is_double_click = app_state.is_double_click();
                             r.click(&mut worker_surface, &app_state).unwrap();
                         }
                     }

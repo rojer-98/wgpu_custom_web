@@ -28,17 +28,13 @@ fn to_shader_coordX_naga_oil_mod_XONUW24DMMVPWM5LOMN2GS33OOMX(model_position: ve
     } else {
         position.x = -((1f - (model_position.x / half_w)));
     }
-    let _e24: f32 = position.x;
-    position.x = (_e24 * 0.75f);
     if (model_position.y > half_h) {
         position.y = -(((model_position.y / half_h) - 1f));
     } else {
         position.y = (1f - (model_position.y / half_h));
     }
-    let _e41: f32 = position.y;
-    position.y = (_e41 * 0.75f);
-    let _e43: vec3<f32> = position;
-    return _e43;
+    let _e35: vec3<f32> = position;
+    return _e35;
 }
 
 @vertex 
@@ -57,7 +53,9 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 @fragment 
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if (in.is_click.x == 1u) {
-        return vec4<f32>(1f, 1f, 1f, 1f);
+        let b_color: vec4<f32> = vec4<f32>(in.color, 0.3f);
+        let s_color: vec4<f32> = vec4<f32>(0.235f, 0.564f, 1f, 0f);
+        return (b_color + s_color);
     } else {
         return vec4<f32>(in.color, 1f);
     }

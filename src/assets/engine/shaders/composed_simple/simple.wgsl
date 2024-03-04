@@ -35,10 +35,7 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
   if in.is_click.x == 1 {
-    let b_color = vec4<f32>(in.color, 0.3);
-    let s_color = vec4<f32>(0.235, 0.564, 1., 0.);
-
-    return b_color + s_color;
+    return vec4<f32>(1.,1.,1., 1.0);
   } else {
     return vec4<f32>(in.color, 1.0);
   }

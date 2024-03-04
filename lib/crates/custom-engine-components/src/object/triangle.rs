@@ -1,4 +1,4 @@
-use std::array::from_fn;
+use std::{array::from_fn, task::Wake};
 
 use cgmath::{InnerSpace, Vector3, Vector4};
 use derive_more::{Deref, DerefMut};
@@ -74,7 +74,7 @@ impl Triangle {
 
     pub fn click<'a, T: Into<&'a Vector3<f32>>>(&mut self, point: T) {
         if self.point_inside(point.into()) {
-            self.controls.x = 1;
+            self.controls.x ^= 1;
         }
     }
 
@@ -86,18 +86,12 @@ impl Triangle {
         b -= *point;
         c -= *point;
 
-        println!("{a:?} {b:?} {c:?}");
-
         let u = b.cross(a);
         let v = c.cross(b);
         let w = a.cross(c);
 
-        println!("{u:?} {v:?} {w:?}");
-
         let uv_dot = u.dot(v);
         let uw_dot = u.dot(w);
-
-        println!("{uv_dot:?} {uw_dot:?}");
 
         if uv_dot < 0. || uw_dot < 0. {
             false
