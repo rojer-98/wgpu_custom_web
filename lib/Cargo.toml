@@ -221,5 +221,5 @@ members = [
   "crates/custom-engine-core",
   "crates/custom-engine-components",
   "crates/custom-engine-models", 
-  "crates/custom-engine-utils", "crates/custom-engine-derive", 
+  "crates/custom-engine-derive", 
 ]

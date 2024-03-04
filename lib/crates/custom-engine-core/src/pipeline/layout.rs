@@ -57,7 +57,7 @@ impl<'a> Builder<'a> for PipelineLayoutBuilder<'a> {
         let layout_name = format!("Pipeline layout: {id}");
 
         let label = self.label.unwrap_or(&layout_name);
-        let entries = self.entries.unwrap_or(vec![]);
+        let entries = self.entries.unwrap_or_default();
 
         debug!(
             "

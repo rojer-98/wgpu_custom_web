@@ -69,7 +69,7 @@ impl RenderWorker for SimpleModelRender {
         let bgl = m.bind_group_layout();
 
         let instances = Instances::new(SPACE_BETWEEN, NUM_INSTANCES_PER_ROW).data();
-        let (vb_id, v_b_builder) = w.create_buffer_id::<InstanceRaw>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(1)
@@ -87,13 +87,13 @@ impl RenderWorker for SimpleModelRender {
                 "Camera",
                 0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &camera.data(),
+                &[camera.data()],
             ))
             .entries(UniformDescription::new(
                 "Light",
                 1,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &light.data(),
+                &[light.data()],
             ))
             .bind_group_binding(1)
             .build()?;
@@ -182,7 +182,6 @@ impl RenderWorker for SimpleModelRender {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
-                    // The Rgba16Float format cannot be filtered
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     view_dimension: wgpu::TextureViewDimension::D2,
                     multisampled: false,
@@ -430,8 +429,8 @@ impl RenderWorker for SimpleModelRender {
         self.camera.update(event);
         self.light.update(event);
 
-        w.update_uniform(self.c_id, "Camera", &self.camera.data())?;
-        w.update_uniform(self.c_id, "Light", &self.light.data())?;
+        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
+        w.update_uniform(self.c_id, "Light", &[self.light.data()])?;
 
         Ok(())
     }

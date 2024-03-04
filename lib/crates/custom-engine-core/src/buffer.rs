@@ -72,15 +72,16 @@ impl Buffer {
 
         device.poll(wgpu::Maintain::Wait);
         rx.recv_async().await??;
+        self.write_buffer(data);
 
-        Ok(self.write_buffer(data))
+        Ok(())
     }
 }
 
-pub struct BufferBuilder<'a, T: bytemuck::Pod + bytemuck::Zeroable> {
+pub struct BufferBuilder<'a> {
     id: Option<usize>,
     label: Option<&'a str>,
-    data: Option<&'a [T]>,
+    data: Option<Vec<u8>>,
     usage: wgpu::BufferUsages,
     binding: u32,
     mapped_at_creation: bool,
@@ -89,7 +90,7 @@ pub struct BufferBuilder<'a, T: bytemuck::Pod + bytemuck::Zeroable> {
     device: &'a wgpu::Device,
 }
 
-impl<'a, T: bytemuck::Pod + bytemuck::Zeroable> Builder<'a> for BufferBuilder<'a, T> {
+impl<'a> Builder<'a> for BufferBuilder<'a> {
     type Final = Buffer;
 
     fn new(device: &'a wgpu::Device) -> Self {
@@ -130,9 +131,7 @@ impl<'a, T: bytemuck::Pod + bytemuck::Zeroable> Builder<'a> for BufferBuilder<'a
         let mapped_at_creation = self.mapped_at_creation;
         let size = self.size.unwrap_or_default();
 
-        let inner_buffer = if let Some(d) = self.data {
-            let mut contents = bytemuck::cast_slice(d).to_vec();
-
+        let inner_buffer = if let Some(mut contents) = self.data {
             if size != 0 {
                 contents.resize(size as _, 0)
             }
@@ -171,9 +170,9 @@ Build `{label}`:
     }
 }
 
-impl<'a, T: bytemuck::Pod + bytemuck::Zeroable> BufferBuilder<'a, T> {
-    pub fn data(mut self, data: &'a [T]) -> Self {
-        self.data = Some(data);
+impl<'a> BufferBuilder<'a> {
+    pub fn data<T: bytemuck::Pod + bytemuck::Zeroable>(mut self, data: &'a [T]) -> Self {
+        self.data = Some(bytemuck::cast_slice(data).to_vec());
         self
     }
 

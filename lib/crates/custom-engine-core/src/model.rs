@@ -203,8 +203,8 @@ Proceed material: `{texture_name}:{i}`:
 
         let meshes = obj_file
             .models
-            .into_iter()
-            .map(|(_, m)| -> Result<Mesh, CoreError> {
+            .into_values()
+            .map(|m| -> Result<Mesh, CoreError> {
                 let mut vertices = (0..m.mesh.positions.len() / 3)
                     .map(|i| ModelRaw {
                         position: [

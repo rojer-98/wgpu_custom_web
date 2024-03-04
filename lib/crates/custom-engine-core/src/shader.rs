@@ -17,13 +17,51 @@ pub enum ShaderSource<'a> {
     SPIRV(Vec<u32>),
 }
 
+#[derive(Debug)]
+pub enum Shader {
+    Compute(ComputeShader),
+    Render(RenderShader),
+}
+
+impl Shader {
+    pub fn id(&self) -> usize {
+        use Shader::*;
+
+        match self {
+            Compute(c_s) => c_s.id,
+            Render(r_s) => r_s.id,
+        }
+    }
+
+    pub fn id_mut(&mut self) -> &mut usize {
+        use Shader::*;
+
+        match self {
+            Compute(c_s) => &mut c_s.id,
+            Render(r_s) => &mut r_s.id,
+        }
+    }
+
+    pub fn render(&self) -> Option<&RenderShader> {
+        if let Shader::Render(r_s) = self {
+            return Some(r_s);
+        }
+
+        None
+    }
+
+    pub fn compute(&self) -> Option<&ComputeShader> {
+        if let Shader::Compute(c_s) = self {
+            return Some(c_s);
+        }
+
+        None
+    }
+}
+
 #[derive(Debug, Deref, DerefMut)]
-pub struct Shader {
+pub struct ComputeShader {
     pub id: usize,
-    pub fs_entry_point: String,
-    pub fs_options: Vec<Option<wgpu::ColorTargetState>>,
-    pub vs_entry_point: String,
-    pub vs_options: Vec<wgpu::VertexBufferLayout<'static>>,
     pub compute_entry_point: Option<String>,
 
     #[deref]
@@ -31,7 +69,20 @@ pub struct Shader {
     inner_shader: wgpu::ShaderModule,
 }
 
-impl Shader {
+#[derive(Debug, Deref, DerefMut)]
+pub struct RenderShader {
+    pub id: usize,
+    pub fs_entry_point: String,
+    pub fs_options: Vec<Option<wgpu::ColorTargetState>>,
+    pub vs_entry_point: String,
+    pub vs_options: Vec<wgpu::VertexBufferLayout<'static>>,
+
+    #[deref]
+    #[deref_mut]
+    inner_shader: wgpu::ShaderModule,
+}
+
+impl RenderShader {
     pub fn make_vertex_state(&self) -> wgpu::VertexState {
         wgpu::VertexState {
             module: &self.inner_shader,
@@ -58,6 +109,7 @@ pub struct ShaderBuilder<'a> {
     vs_entry_point: Option<&'a str>,
     vs_options: Option<Vec<wgpu::VertexBufferLayout<'static>>>,
     source: Option<ShaderSource<'a>>,
+    is_compute: bool,
     compute_entry_point: Option<&'a str>,
 
     device: &'a wgpu::Device,
@@ -79,6 +131,7 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             fs_options: None,
             vs_entry_point: None,
             vs_options: None,
+            is_compute: false,
             compute_entry_point: None,
         }
     }
@@ -96,6 +149,7 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
             fs_options: None,
             vs_entry_point: None,
             vs_options: None,
+            is_compute: false,
             compute_entry_point: None,
         }
     }
@@ -107,36 +161,13 @@ impl<'a> Builder<'a> for ShaderBuilder<'a> {
         let id = self.id.unwrap_or_default();
         let shader_name = format!("Shader: {id}");
 
-        let label = self.label.unwrap_or(&shader_name);
-        let fs_entry_point = self
-            .fs_entry_point
-            .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?
-            .to_string();
-        let vs_entry_point = self
-            .vs_entry_point
-            .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?
-            .to_string();
-        let vs_options = self.vs_options.unwrap_or(vec![]);
-        let fs_options = self
-            .fs_options
-            .map(|options| options.into_iter().map(Some).collect())
-            .unwrap_or(vec![]);
-        let compute_entry_point = self.compute_entry_point.map(String::from);
+        let is_compute = self.is_compute;
 
+        let label = self.label.unwrap_or(&shader_name);
+        let compute_entry_point = self.compute_entry_point.map(String::from);
         let source = self
             .source
             .ok_or(CoreError::EmptyShaderSource(label.to_string()))?;
-
-        debug!(
-            "
-Build `{label}`: 
-    Vertex entry point: {vs_entry_point},
-    Fragment entry point: {fs_entry_point},
-    Vertex options: {vs_options:#?},
-    Fragment options: {fs_options:#?},
-    Source: {source:#?},
-    "
-        );
 
         let inner_shader = match source {
             ShaderSource::Plain(source) => {
@@ -155,21 +186,69 @@ Build `{label}`:
             },
         };
 
-        Ok(Shader {
-            id,
-            fs_entry_point,
-            fs_options,
-            vs_entry_point,
-            vs_options,
-            inner_shader,
-            compute_entry_point,
-        })
+        let shader = if is_compute {
+            let compute_entry_point =
+                compute_entry_point.ok_or(CoreError::EmptyEntryPoint(label.to_string()))?;
+
+            debug!(
+                "
+Build Compute `{label}`: 
+    Compute entry point: {compute_entry_point},
+    "
+            );
+
+            Shader::Compute(ComputeShader {
+                id,
+                compute_entry_point: Some(compute_entry_point),
+                inner_shader,
+            })
+        } else {
+            let fs_entry_point = self
+                .fs_entry_point
+                .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?
+                .to_string();
+            let vs_entry_point = self
+                .vs_entry_point
+                .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?
+                .to_string();
+            let vs_options = self.vs_options.unwrap_or(vec![]);
+            let fs_options = self
+                .fs_options
+                .map(|options| options.into_iter().map(Some).collect())
+                .unwrap_or(vec![]);
+
+            debug!(
+                "
+Build Render `{label}`: 
+    Vertex entry point: {vs_entry_point},
+    Fragment entry point: {fs_entry_point},
+    Vertex options: {vs_options:#?},
+    Fragment options: {fs_options:#?},
+    "
+            );
+
+            Shader::Render(RenderShader {
+                id,
+                fs_entry_point,
+                fs_options,
+                vs_entry_point,
+                vs_options,
+                inner_shader,
+            })
+        };
+
+        Ok(shader)
     }
 }
 
 impl<'a> ShaderBuilder<'a> {
     pub fn label(mut self, label: &'a str) -> Self {
         self.label = Some(label);
+        self
+    }
+
+    pub fn is_compute(mut self, is_compute: bool) -> Self {
+        self.is_compute = is_compute;
         self
     }
 

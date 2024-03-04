@@ -99,7 +99,7 @@ impl RenderWorker for SimpleRenderTexture {
                 "Camera",
                 0,
                 wgpu::ShaderStages::VERTEX,
-                &camera.data(),
+                &[camera.data()],
             ))
             .bind_group_binding(1)
             .build()?;
@@ -142,11 +142,11 @@ impl RenderWorker for SimpleRenderTexture {
 
         let bgl = rt.bind_group_layout()?;
 
-        let (vb_id, v_b_builder) = w.create_buffer_id::<VertexPos>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
-            .data(bytemuck::cast_slice(VERTICES_POS))
+            .data(VERTICES_POS)
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
@@ -202,7 +202,7 @@ impl RenderWorker for SimpleRenderTexture {
 
     fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
         self.camera.update(event);
-        w.update_uniform(self.c_id, "Camera", &self.camera.data())?;
+        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
 
         Ok(())
     }

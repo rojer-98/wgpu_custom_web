@@ -1,6 +1,7 @@
 use anyhow::Result;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
+use log::{error, info};
 #[cfg(not(target_arch = "wasm32"))]
 use log4rs::{
     append::{console::ConsoleAppender, file::FileAppender},
@@ -8,8 +9,8 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 use winit::{
-    dpi::PhysicalSize,
-    event::{Event, KeyEvent, WindowEvent},
+    dpi::{PhysicalPosition, PhysicalSize},
+    event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
     window::{Window, WindowBuilder},
@@ -20,6 +21,7 @@ use custom_engine_core::{
 };
 
 use crate::{
+    application::AppState,
     config::{EngineConfig, LoadConfig, WorkerKind},
     workers::{
         custom::SimpleCustomRender, model::SimpleModelRender, render_texture::SimpleRenderTexture,
@@ -48,7 +50,7 @@ impl EngineRunner {
                 console_log::init_with_level(log::Level::Info).expect("Couldn't initialize logger");
             } else {
                 if let Some(logger) = self.config.logger.as_ref() {
-                    let _ = log4rs::init_file(logger, Default::default())?;
+                    log4rs::init_file(logger, Default::default())?;
                 } else {
                     let stdout = ConsoleAppender::builder()
                         .encoder(Box::new(PatternEncoder::new(
@@ -95,8 +97,9 @@ impl EngineRunner {
         let (event_loop, window) = self.env_init()?;
 
         let runtime = Runtime::init(Some(&window))?;
+        let mut app_state = AppState::new();
         let mut worker_surface = runtime.worker_surface()?;
-        let mut r = self.render_init(&mut worker_surface)?;
+        let mut r = SimpleRender::init(&mut worker_surface)?;
 
         event_loop.run(|event, control_flow| match event {
             Event::WindowEvent {
@@ -106,6 +109,7 @@ impl EngineRunner {
                 r.update(&mut worker_surface, event).unwrap();
 
                 match event {
+                    // Worker
                     WindowEvent::RedrawRequested => {
                         match r.render(&mut worker_surface) {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => {
@@ -117,19 +121,39 @@ impl EngineRunner {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
                                 control_flow.exit()
                             }
-                            Err(e) => println!("{e}"),
+                            Err(e) => error!("{e}"),
                             _ => {}
                         }
 
                         window.request_redraw();
                     }
                     WindowEvent::Resized(new_size) => {
-                        worker_surface.resize_by_size((new_size.width, new_size.height))
+                        worker_surface.resize_by_size((new_size.width, new_size.height));
+                        r.resize(&mut worker_surface).unwrap();
                     }
                     WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                        worker_surface.resize_by_scale(*scale_factor)
+                        worker_surface.resize_by_scale(*scale_factor);
+                        r.resize(&mut worker_surface).unwrap();
                     }
 
+                    // Mouse
+                    WindowEvent::CursorMoved { position, .. } => {
+                        app_state.cursor_position = *position;
+                    }
+                    WindowEvent::MouseInput { state, .. } => {
+                        app_state.click_state = *state;
+
+                        if state.is_pressed() {
+                            app_state.click_position = app_state.cursor_position;
+
+                            app_state.clicked();
+
+                            let is_double_click = app_state.is_double_click();
+                            r.click(&mut worker_surface, &app_state).unwrap();
+                        }
+                    }
+
+                    // Exit
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
                         event:

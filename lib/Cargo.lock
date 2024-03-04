@@ -585,9 +585,11 @@ dependencies = [
  "bytemuck",
  "cgmath",
  "custom-engine-core",
+ "custom-engine-derive",
  "derive_more",
  "rust-embed",
  "thiserror",
+ "wgpu",
  "winit",
 ]
 
@@ -637,10 +639,6 @@ dependencies = [
  "log",
  "tobj",
 ]
-
-[[package]]
-name = "custom-engine-utils"
-version = "0.1.0"
 
 [[package]]
 name = "d3d12"

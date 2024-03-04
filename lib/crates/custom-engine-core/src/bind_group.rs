@@ -130,7 +130,7 @@ impl<'a> BindGroupBuilder<'a> {
             .get_or_insert(vec![])
             .push(wgpu::BindGroupEntry {
                 binding,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(sampler),
             });
 
         self
@@ -142,7 +142,7 @@ impl<'a> BindGroupBuilder<'a> {
         views.iter().for_each(|(binding, view)| {
             entries.push(wgpu::BindGroupEntry {
                 binding: *binding,
-                resource: wgpu::BindingResource::TextureView(&view),
+                resource: wgpu::BindingResource::TextureView(view),
             })
         });
 
@@ -154,7 +154,7 @@ impl<'a> BindGroupBuilder<'a> {
             .get_or_insert(vec![])
             .push(wgpu::BindGroupEntry {
                 binding,
-                resource: wgpu::BindingResource::TextureView(&view),
+                resource: wgpu::BindingResource::TextureView(view),
             });
 
         self

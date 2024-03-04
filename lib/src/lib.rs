@@ -1,3 +1,4 @@
+mod application;
 mod config;
 mod errors;
 mod files;
@@ -10,7 +11,7 @@ use runner::EngineRunner;
 use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-const CONFIG: &'static str = include_str!("../assets/config.toml");
+const CONFIG: &str = include_str!("../assets/config.toml");
 
 #[cfg(target_arch = "wasm32")]
 #[global_allocator]

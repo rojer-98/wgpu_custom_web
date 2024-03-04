@@ -9,6 +9,7 @@ use custom_engine_core::{
 use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
+use log::info;
 use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
@@ -96,11 +97,11 @@ impl RenderWorker for SimpleCustomRender {
             .bind_group_binding(0)
             .build()?;
 
-        let (vb_id, v_b_builder) = w.create_buffer_id::<Vertex>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
-            .data(bytemuck::cast_slice(VERTICES))
+            .data(VERTICES)
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
