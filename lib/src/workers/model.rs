@@ -67,7 +67,7 @@ impl RenderWorker for SimpleModelRender {
         let bgl = m.bind_group_layout();
 
         let instances = Instances::new(SPACE_BETWEEN, NUM_INSTANCES_PER_ROW).data();
-        let (vb_id, v_b_builder) = w.create_buffer_id::<InstanceRaw>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(1)

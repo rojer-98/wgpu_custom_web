@@ -124,14 +124,12 @@ impl<'a> Worker<'a> {
     }
 
     // Buffer
-    pub fn create_buffer_id<T: bytemuck::Zeroable + bytemuck::Pod>(
-        &self,
-    ) -> (usize, BufferBuilder<'_, T>) {
+    pub fn create_buffer_id(&self) -> (usize, BufferBuilder<'_>) {
         let id = self.context.generate_unique_id();
         (id, BufferBuilder::new_indexed(self.device, id))
     }
 
-    pub fn create_buffer<T: bytemuck::Zeroable + bytemuck::Pod>(&self) -> BufferBuilder<'_, T> {
+    pub fn create_buffer(&self) -> BufferBuilder<'_> {
         BufferBuilder::new(self.device)
     }
 

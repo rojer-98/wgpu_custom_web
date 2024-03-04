@@ -9,7 +9,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
@@ -99,7 +99,7 @@ impl EngineRunner {
         let runtime = Runtime::init(Some(&window))?;
         let mut app_state = AppState::new();
         let mut worker_surface = runtime.worker_surface()?;
-        let mut r = self.render_init(&mut worker_surface)?;
+        let mut r = SimpleRender::init(&mut worker_surface)?;
 
         event_loop.run(|event, control_flow| match event {
             Event::WindowEvent {
@@ -137,10 +137,14 @@ impl EngineRunner {
                     // Mouse
                     WindowEvent::CursorMoved { position, .. } => {
                         app_state.cursor_position = *position;
+                        info!("{position:?}");
                     }
                     WindowEvent::MouseInput { state, .. } => {
                         if let ElementState::Pressed = state {
-                            info!("{state:?}");
+                            app_state.click_state = *state;
+                            app_state.click_position = app_state.cursor_position;
+
+                            r.click(&mut worker_surface, &app_state).unwrap();
                         }
                     }
 

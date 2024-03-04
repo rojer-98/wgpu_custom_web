@@ -64,11 +64,11 @@ impl RenderWorker for SimpleRenderToTexture {
             .source(sh_data)
             .build()?;
 
-        let (vb_id, v_b_builder) = w.create_buffer_id::<Vertex>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
-            .data(bytemuck::cast_slice(VERTICES))
+            .data(VERTICES)
             .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 

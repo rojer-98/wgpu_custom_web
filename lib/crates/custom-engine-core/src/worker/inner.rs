@@ -297,7 +297,7 @@ impl<'a> Worker<'a> {
             })
             .build()?;
         let b = self
-            .create_buffer::<()>()
+            .create_buffer()
             .label("Render texture buffer")
             .binding(0)
             .size((self.size.0 * self.size.1 * components).into())

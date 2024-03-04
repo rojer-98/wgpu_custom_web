@@ -142,11 +142,11 @@ impl RenderWorker for SimpleRenderTexture {
 
         let bgl = rt.bind_group_layout()?;
 
-        let (vb_id, v_b_builder) = w.create_buffer_id::<VertexPos>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
-            .data(bytemuck::cast_slice(VERTICES_POS))
+            .data(VERTICES_POS)
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 

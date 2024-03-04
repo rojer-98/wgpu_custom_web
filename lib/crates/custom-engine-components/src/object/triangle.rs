@@ -1,57 +1,134 @@
-use cgmath::dot;
-use cgmath::InnerSpace;
-use cgmath::Vector3;
-use derive_more::Constructor;
+use std::array::from_fn;
 
-use crate::{primitives::Vertex, traits::Component};
+use cgmath::{InnerSpace, Vector3, Vector4};
+use derive_more::{Deref, DerefMut};
 
-#[derive(Debug, Clone)]
+use custom_engine_core::traits::VertexLayout;
+
+use crate::primitives::Vertex;
+
+#[derive(Debug, Deref, DerefMut)]
+pub struct Triangles {
+    #[deref]
+    #[deref_mut]
+    inner: Vec<Triangle>,
+}
+
+impl Triangles {
+    pub fn click<T: Into<Vector3<f32>>>(&mut self, point: T) {
+        let point = point.into();
+
+        self.iter_mut().for_each(|p| p.click(&point));
+    }
+
+    pub fn to_data(&self) -> Vec<Vertex> {
+        self.iter()
+            .map(|t| t.to_data().to_vec())
+            .flatten()
+            .collect()
+    }
+}
+
+impl From<Vec<Triangle>> for Triangles {
+    fn from(value: Vec<Triangle>) -> Self {
+        Self { inner: value }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Triangle {
     points: [Vector3<f32>; 3],
     color: Vector3<f32>,
+    controls: Vector4<u32>,
 }
 
 impl Triangle {
-    pub fn new(points: [Vector3<f32>; 3], color: Vector3<f32>) -> Self {
-        Self { points, color }
+    pub fn new<T: Into<Vector3<f32>>>(points: [T; 3], color: T) -> Self {
+        let mut converted_points = points.into_iter().map(|p| p.into());
+
+        Self {
+            points: from_fn(|_| converted_points.next().unwrap()),
+            color: color.into(),
+            controls: Vector4::new(0, 0, 0, 0),
+        }
     }
 
-    pub fn point_inside(&self, point: &Vector3<f32>) -> bool {
+    pub fn to_data(&self) -> [Vertex; 3] {
+        let mut verts = [Vertex::default(), Vertex::default(), Vertex::default()];
+
+        for (i, p) in self.points.iter().enumerate() {
+            verts[i] = Vertex {
+                controls: self.controls.into(),
+                color: self.color.into(),
+                position: (*p).into(),
+                ..Default::default()
+            };
+        }
+
+        verts
+    }
+
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        Vertex::desc()
+    }
+
+    pub fn click<'a, T: Into<&'a Vector3<f32>>>(&mut self, point: T) {
+        if self.point_inside(point.into()) {
+            self.controls.x = 1;
+        }
+    }
+
+    fn point_inside<'a, T: Into<&'a Vector3<f32>>>(&self, point: T) -> bool {
+        let point = point.into();
         let [mut a, mut b, mut c] = self.points.clone();
 
         a -= *point;
         b -= *point;
         c -= *point;
 
+        println!("{a:?} {b:?} {c:?}");
+
         let u = b.cross(a);
         let v = c.cross(b);
         let w = a.cross(c);
 
-        if u.dot(v) < 0. {
-            return false;
-        }
+        println!("{u:?} {v:?} {w:?}");
 
-        if u.dot(w) < 0. {
-            return false;
-        }
+        let uv_dot = u.dot(v);
+        let uw_dot = u.dot(w);
 
-        true
+        println!("{uv_dot:?} {uw_dot:?}");
+
+        if uv_dot < 0. || uw_dot < 0. {
+            false
+        } else {
+            true
+        }
     }
 }
 
 mod tests {
-    use cgmath::Vector3;
-
-    use super::Triangle;
-
     #[test]
     fn point_inside() {
+        use cgmath::Vector3;
+
+        use super::Triangle;
+
         let points = [
             Vector3::new(40., 20., 1.),
             Vector3::new(100., 200., 1.),
             Vector3::new(150., 30., 1.),
         ];
         let color = Vector3::new(0., 0., 0.);
+        let t = Triangle::new(points, color);
+
+        let center = Vector3::new(96., 50., 1.);
+
+        assert_eq!(true, t.point_inside(&center));
+        assert_eq!(false, t.point_inside(&Vector3::new(20., 300., 1.)));
+
+        let points = [[40., 20., 1.], [100., 200., 1.], [150., 30., 1.]];
+        let color = [0., 0., 0.];
         let t = Triangle::new(points, color);
 
         let center = Vector3::new(96., 50., 1.);

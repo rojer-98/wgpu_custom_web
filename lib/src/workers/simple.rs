@@ -1,3 +1,4 @@
+use custom_engine_components::object::triangle::{Triangle, Triangles};
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
@@ -6,44 +7,46 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
+use cgmath::Vector3;
+use log::info;
 use winit::event::WindowEvent;
 
-use crate::files::{ShaderFiles, ShaderKind};
+use crate::{
+    application::AppState,
+    errors::EngineError,
+    files::{ShaderFiles, ShaderKind},
+};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
-#[attributes("Vertex")]
-#[attributes("0 => Float32x3, 1 => Float32x3")]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct UData {
+    pub size: [f32; 4],
 }
-
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [1000.0, 150.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [300.5, 500.5, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [1000.5, 200.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-];
 
 pub struct SimpleRender {
     shift: f32,
-    data: Vec<Vertex>,
+    counter: usize,
+    data: Triangles,
 
     vb_id: usize,
     p_id: usize,
     c_id: usize,
+}
+
+impl SimpleRender {
+    pub fn click(&mut self, w: &mut Worker<'_>, app: &AppState) -> Result<(), EngineError> {
+        self.data.click(Vector3::new(
+            app.cursor_position.x as f32,
+            app.cursor_position.y as f32,
+            0.,
+        ));
+
+        w.update_buffer(self.vb_id, 0, &self.data.to_data())?;
+
+        Ok(())
+    }
 }
 
 impl RenderWorker for SimpleRender {
@@ -52,7 +55,15 @@ impl RenderWorker for SimpleRender {
         Self: Sized,
     {
         let shift = 0.001;
-        let data = VERTICES.to_vec();
+        let first_triangle = Triangle::new(
+            [
+                [1000.0, 150.5, 0.0],
+                [300.5, 500.5, 0.0],
+                [1000.5, 200.5, 0.0],
+            ],
+            [1.0, 0.0, 0.0],
+        );
+        let data: Triangles = vec![first_triangle].into();
 
         let format = w.format();
         let sh_data = ShaderFiles::get_file_data(ShaderKind::Simple).unwrap();
@@ -60,7 +71,7 @@ impl RenderWorker for SimpleRender {
             .create_shader()
             .label("Simple shader")
             .vs_entry_point("vs_main")
-            .vs_options(vec![Vertex::desc()])
+            .vs_options(vec![Triangle::desc()])
             .fs_options(vec![wgpu::ColorTargetState {
                 format,
                 blend: Some(wgpu::BlendState {
@@ -73,25 +84,27 @@ impl RenderWorker for SimpleRender {
             .source(sh_data)
             .build()?;
 
-        let (vb_id, v_b_builder) = w.create_buffer_id::<Vertex>();
+        let (vb_id, v_b_builder) = w.create_buffer_id();
         let v_b = v_b_builder
             .label("Some buffer")
             .binding(0)
             .size(1024)
-            .data(bytemuck::cast_slice(VERTICES))
+            .data(&data.to_data())
             .usage(wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST)
             .build()?;
 
-        let c_data: [f32; 4] = [1200., 1600., 0., 0.];
+        let c_data = UData {
+            size: [1200., 1600., 0., 0.],
+        };
         let (c_id, c_b) = w.create_uniform_id();
         let c = c_b
             .name("Uniform block")
             .bind_group_binding(0)
             .entries(UniformDescription::new(
-                "Size",
+                "Controls",
                 0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &c_data,
+                &[c_data],
             ))
             .build()?;
 
@@ -133,6 +146,7 @@ impl RenderWorker for SimpleRender {
             c_id,
             data,
             shift,
+            counter: 0,
         })
     }
 
@@ -175,7 +189,7 @@ impl RenderWorker for SimpleRender {
                         }),
                 )
                 .instances(0..1)
-                .entities(0..42)
+                .entities(0..16)
                 .bind_groups(vec![c.get_group()])
                 .vertex_buffer(&vb),
         );
@@ -183,22 +197,19 @@ impl RenderWorker for SimpleRender {
         w.render(r_p)?;
         w.present()?;
 
-        if w.update_buffer(*vb_id, 0, &self.data).is_ok() {
-            self.data.extend(&vec![
-                Vertex {
-                    position: [0.0 - self.shift, 0.5 + self.shift, 0.0],
-                    color: [1.0, 0.0, 0.0],
-                },
-                Vertex {
-                    position: [-0.5 - self.shift, -0.5 + self.shift, 0.0],
-                    color: [0.0, 1.0, 0.0],
-                },
-                Vertex {
-                    position: [0.5 - self.shift, -0.5 + self.shift, 0.0],
-                    color: [0.0, 0.0, 1.0],
-                },
-            ]);
-            self.shift += 0.1;
+        if self.counter < 4 {
+            self.counter += 1;
+            self.data.push(Triangle::new(
+                [
+                    [1000.0 - self.shift, 150.5 + self.shift, 0.0],
+                    [300.5 - self.shift, 500.5 + self.shift, 0.0],
+                    [1000.5 - self.shift, 200.5 + self.shift, 0.0],
+                ],
+                [1.0, 0.0, 0.0],
+            ));
+            self.shift += 100.;
+
+            w.update_buffer(*vb_id, 0, &self.data.to_data())?;
         }
 
         Ok(())
