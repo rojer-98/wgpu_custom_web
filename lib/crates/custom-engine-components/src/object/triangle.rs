@@ -1,11 +1,11 @@
-use std::{array::from_fn, task::Wake};
+use std::array::from_fn;
 
 use cgmath::{InnerSpace, Vector3, Vector4};
 use derive_more::{Deref, DerefMut};
 
 use custom_engine_core::traits::VertexLayout;
 
-use crate::primitives::Vertex;
+use crate::{object::metadata::ControlFlags, primitives::Vertex, to_shader_coords};
 
 #[derive(Debug, Deref, DerefMut)]
 pub struct Triangles {
@@ -68,13 +68,32 @@ impl Triangle {
         verts
     }
 
+    pub fn to_data_converted(&self, size: (u32, u32)) -> [Vertex; 3] {
+        let mut verts = [Vertex::default(), Vertex::default(), Vertex::default()];
+
+        for (i, p) in self.points.iter().enumerate() {
+            let position = to_shader_coords(*p, size);
+            let mut controls = self.controls;
+            controls.x &= ControlFlags::Convert.to_u32();
+
+            verts[i] = Vertex {
+                controls: controls.into(),
+                color: self.color.into(),
+                position: position.into(),
+                ..Default::default()
+            };
+        }
+
+        verts
+    }
+
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         Vertex::desc()
     }
 
     pub fn click<'a, T: Into<&'a Vector3<f32>>>(&mut self, point: T) {
         if self.point_inside(point.into()) {
-            self.controls.x ^= 1;
+            self.controls.x ^= ControlFlags::Click.to_u32();
         }
     }
 
