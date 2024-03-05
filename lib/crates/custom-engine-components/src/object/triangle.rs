@@ -21,6 +21,18 @@ impl Triangles {
         self.iter_mut().for_each(|p| p.click(&point));
     }
 
+    pub fn move_to<T: Into<Vector3<f32>>>(&mut self, m: T) {
+        let m = m.into();
+
+        self.iter_mut()
+            .filter(|t| (t.controls.x & ControlFlags::Click.to_u32()) == 1)
+            .for_each(|t| {
+                t.points.iter_mut().for_each(|p| {
+                    *p += m;
+                })
+            });
+    }
+
     pub fn to_data(&self) -> Vec<Vertex> {
         self.iter()
             .map(|t| t.to_data().to_vec())
@@ -109,14 +121,7 @@ impl Triangle {
         let v = c.cross(b);
         let w = a.cross(c);
 
-        let uv_dot = u.dot(v);
-        let uw_dot = u.dot(w);
-
-        if uv_dot < 0. || uw_dot < 0. {
-            false
-        } else {
-            true
-        }
+        u.dot(v) > 0. && u.dot(w) > 0.
     }
 }
 

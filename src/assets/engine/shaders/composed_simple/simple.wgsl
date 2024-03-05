@@ -10,7 +10,7 @@ struct VertexInput {
 struct VertexOutput {
   @builtin(position) clip_position: vec4<f32>,
   @location(0) color: vec3<f32>,
-  @location(1) is_click: vec4<u32>,
+  @location(1) is_click: u32,
 };
 
 struct Controls {
@@ -23,10 +23,20 @@ var<uniform> controls: Controls;
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
   var out: VertexOutput;
+  var position: vec3<f32>;
+
+  let is_click = model.controls.x & 1u;
+  let converted = (model.controls.x >> 1u) & 1u;
+
+  if bool(converted) {
+    position = model.position;
+  } else {
+    position = Func::to_shader_coord(model.position, controls.size);
+  }
 
   out.color = model.color;
-  out.clip_position = vec4<f32>(Func::to_shader_coord(model.position, controls.size), 1.0);
-  out.is_click = model.controls;
+  out.clip_position = vec4<f32>(position, 1.0);
+  out.is_click = is_click;
   
   return out;
 }
@@ -34,8 +44,11 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-  if in.is_click.x == 1 {
-    return vec4<f32>(1.,1.,1., 1.0);
+  if bool(in.is_click) {
+    let b_color = vec4<f32>(in.color, 0.3);
+    let s_color = vec4<f32>(0.235, 0.564, 1., 0.);
+
+    return b_color + s_color;
   } else {
     return vec4<f32>(in.color, 1.0);
   }

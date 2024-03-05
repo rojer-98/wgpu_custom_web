@@ -138,19 +138,24 @@ impl EngineRunner {
 
                     // Mouse
                     WindowEvent::CursorMoved { position, .. } => {
+                        if app_state.click_state.is_pressed() {
+                            let diff = (
+                                position.x - app_state.cursor_position.x,
+                                position.y - app_state.cursor_position.y,
+                            );
+                            r.move_to(&mut worker_surface, diff).unwrap();
+                        }
+
                         app_state.cursor_position = *position;
                     }
                     WindowEvent::MouseInput { state, .. } => {
-                        app_state.click_state = *state;
-
                         if state.is_pressed() {
-                            app_state.click_position = app_state.cursor_position;
-
                             app_state.clicked();
 
-                            let is_double_click = app_state.is_double_click();
                             r.click(&mut worker_surface, &app_state).unwrap();
                         }
+
+                        app_state.click_state = *state;
                     }
 
                     // Exit

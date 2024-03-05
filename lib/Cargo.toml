@@ -50,6 +50,9 @@ bytemuck = "1.14.3"
 image = { version = "0.24", features = [ "png", "jpeg" ] }
 rust-embed = { version = "8.3.0", features = [ "include-exclude", "interpolate-folder-path", "debug-embed" ] }
 
+# Time 
+instant = { version = "0.1", features = [ "wasm-bindgen", "inaccurate" ] }
+
 # Helpers
 regex = "1.10.3"
 cfg-if = "1"

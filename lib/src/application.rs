@@ -1,8 +1,7 @@
 mod foreign;
 mod key_bindings;
 
-use std::time::{Duration, Instant};
-
+use instant::{Duration, Instant};
 use winit::{dpi::PhysicalPosition, event::ElementState};
 
 pub enum ClickType {

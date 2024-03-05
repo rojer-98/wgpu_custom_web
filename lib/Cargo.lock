@@ -615,6 +615,7 @@ dependencies = [
  "reqwest",
  "thiserror",
  "tobj",
+ "web-sys",
  "wgpu",
  "winit",
 ]
@@ -1363,6 +1364,18 @@ checksum = "7b0b929d511467233429c45a44ac1dcaa21ba0f5ba11e4879e6ed28ddb4f9df4"
 dependencies = [
  "equivalent",
  "hashbrown",
+]
+
+[[package]]
+name = "instant"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
+dependencies = [
+ "cfg-if 1.0.0",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -3315,6 +3328,7 @@ dependencies = [
  "derive_more",
  "futures",
  "image",
+ "instant",
  "js-sys",
  "log",
  "log4rs",
