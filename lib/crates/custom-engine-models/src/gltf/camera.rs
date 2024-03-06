@@ -1,4 +1,4 @@
-use cgmath::{perspective, Deg, Matrix4, Rad, Zero};
+use cgmath::{Deg, Matrix4, Rad, Zero};
 use gltf::{self, camera::Projection};
 
 #[derive(Debug, Clone)]
@@ -34,6 +34,10 @@ pub enum Camera {
 }
 
 impl Camera {
+    pub fn new<'a>(gltf_camera: &'a gltf::Camera<'a>) -> Self {
+        Self::from(gltf_camera)
+    }
+
     pub fn description(&self) -> &str {
         use Camera::*;
 
@@ -43,6 +47,7 @@ impl Camera {
         }
     }
 
+    #[rustfmt::skip]
     pub fn update_projection_matrix(&mut self) {
         use Camera::*;
 
@@ -52,50 +57,27 @@ impl Camera {
                 let t = o.ymag;
                 let f = o.zfar;
                 let n = o.znear;
+
                 o.projection_matrix = Matrix4::new(
-                    1.0 / r,
-                    0.0,
-                    0.0,
-                    0.0, // NOTE: first column!
-                    0.0,
-                    1.0 / t,
-                    0.0,
-                    0.0, // 2nd
-                    0.0,
-                    0.0,
-                    2.0 / (n - f),
-                    0.0, // 3rd
-                    0.0,
-                    0.0,
-                    (f + n) / (n - f),
-                    1.0, // 4th
+                    1.0 / r, 0.0,     0.0,               0.0, 
+                    0.0,     1.0 / t, 0.0,               0.0,
+                    0.0,     0.0,     2.0 / (n - f),     0.0, 
+                    0.0,     0.0,     (f + n) / (n - f), 1.0, 
                 );
             }
             Perspective(p) => {
                 if let Some(zfar) = p.zfar {
-                    p.projection_matrix = perspective(p.fovy, p.aspect_ratio, p.znear, zfar);
+                    p.projection_matrix = cgmath::perspective(p.fovy, p.aspect_ratio, p.znear, zfar);
                 } else {
                     let a = p.aspect_ratio;
                     let y = Rad::from(p.fovy).0;
                     let n = p.znear;
 
                     p.projection_matrix = Matrix4::new(
-                        1.0 / (a * (0.5 * y).tan()),
-                        0.0,
-                        0.0,
-                        0.0, // NOTE: first column!
-                        0.0,
-                        1.0 / (0.5 * y).tan(),
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        -1.0,
-                        -1.0,
-                        0.0,
-                        0.0,
-                        -2.0 * n,
-                        0.0,
+                        1.0 / (a * (0.5 * y).tan()), 0.0,                   0.0,     0.0,
+                        0.0,                         1.0 / (0.5 * y).tan(), 0.0,     0.0,
+                        0.0,                         0.0,                  -1.0,     -1.0,
+                        0.0,                         0.0,                  -2.0 * n, 0.0,
                     );
                 }
             }
@@ -103,7 +85,7 @@ impl Camera {
     }
 }
 
-impl<'a> From<&gltf::Camera<'a>> for Camera {
+impl<'a> From<&'a gltf::Camera<'a>> for Camera {
     fn from(gltf_camera: &gltf::Camera<'a>) -> Self {
         let index = gltf_camera.index();
         let name = gltf_camera.name().map(|n| n.to_owned());

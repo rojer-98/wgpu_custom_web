@@ -1,8 +1,9 @@
-pub mod mesh;
-pub mod material;
-pub mod root;
-pub mod node;
-pub mod scene;
 pub mod camera;
-pub mod texture;
+pub mod document;
+pub mod material;
+pub mod mesh;
+pub mod node;
 pub mod primitive;
+pub mod root;
+pub mod scene;
+pub mod texture;
