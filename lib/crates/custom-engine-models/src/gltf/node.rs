@@ -7,23 +7,21 @@ use crate::gltf::{Camera, Document, Mesh, Root};
 
 #[derive(Debug)]
 pub struct Node {
-    pub index: usize, // glTF index
+    pub index: usize,
     pub children: Vec<usize>,
     pub mesh: Option<Rc<Mesh>>,
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
     pub translation: Vector3<f32>,
-    // TODO: weights
-    // weights_id: usize,
     pub camera: Option<Camera>,
     pub name: Option<String>,
 
-    pub final_transform: Matrix4<f32>, // including parent transforms
+    pub final_transform: Matrix4<f32>,
     pub bounds: Aabb3<f32>,
 }
 
 impl Node {
-    pub fn from_gltf(
+    pub fn new(
         g_node: &gltf::Node<'_>,
         root: &mut Root,
         document: &Document,
@@ -44,7 +42,7 @@ impl Node {
             }
 
             if mesh.is_none() {
-                mesh = Some(Rc::new(Mesh::from_gltf(&g_mesh, root, document, base_path)));
+                mesh = Some(Rc::new(Mesh::new(&g_mesh, root, document, base_path)));
 
                 root.meshes.push(mesh.clone().unwrap());
             }
@@ -68,31 +66,29 @@ impl Node {
     }
 
     pub fn update_transform(&mut self, root: &mut Root, parent_transform: &Matrix4<f32>) {
-        self.final_transform = *parent_transform;
-
-        // TODO: cache local tranform when adding animations?
-        self.final_transform = self.final_transform
+        self.final_transform = *parent_transform
             * Matrix4::from_translation(self.translation)
             * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z)
             * Matrix4::from(self.rotation);
 
-        for node_id in &self.children {
-            let node = root.unsafe_get_node_mut(*node_id);
-            node.update_transform(root, &self.final_transform);
-        }
+        self.children.iter().for_each(|id| {
+            root.unsafe_get_node_mut(*id)
+                .update_transform(root, &self.final_transform);
+        })
     }
 
     /// Should be called after update_transforms
     pub fn update_bounds(&mut self, root: &mut Root) {
         self.bounds = Aabb3::zero();
         if let Some(ref mesh) = self.mesh {
-            //self.bounds = mesh.bounds.transform(&self.final_transform);
+            self.bounds = mesh.bounds.transform(&self.final_transform);
         }
 
-        for node_id in &self.children {
-            let node = root.unsafe_get_node_mut(*node_id);
+        self.children.iter().for_each(|id| {
+            let node = root.unsafe_get_node_mut(*id);
             node.update_bounds(root);
+
             self.bounds = self.bounds.union(&node.bounds);
-        }
+        });
     }
 }

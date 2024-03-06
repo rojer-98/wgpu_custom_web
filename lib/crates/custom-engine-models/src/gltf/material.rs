@@ -2,7 +2,7 @@ use std::{path::Path, rc::Rc};
 
 use cgmath::{Vector3, Vector4};
 
-use crate::gltf::{Document, GltfMaterial, GltfTexture, Root, Texture};
+use crate::gltf::{Document, GltfAlphaMode, GltfMaterial, GltfTexture, Root, Texture};
 
 #[derive(Debug)]
 pub struct Material {
@@ -10,28 +10,28 @@ pub struct Material {
     pub name: Option<String>,
 
     // pbr_metallic_roughness properties
-    base_color_factor: Vector4<f32>,
-    base_color_texture: Option<Rc<Texture>>,
-    metallic_factor: f32,
-    roughness_factor: f32,
-    metallic_roughness_texture: Option<Rc<Texture>>,
+    pub base_color_factor: Vector4<f32>,
+    pub base_color_texture: Option<Rc<Texture>>,
+    pub metallic_factor: f32,
+    pub roughness_factor: f32,
+    pub metallic_roughness_texture: Option<Rc<Texture>>,
 
-    normal_texture: Option<Rc<Texture>>,
-    normal_scale: Option<f32>,
+    pub normal_texture: Option<Rc<Texture>>,
+    pub normal_scale: Option<f32>,
 
-    occlusion_texture: Option<Rc<Texture>>,
-    occlusion_strength: f32,
-    emissive_factor: Vector3<f32>,
-    emissive_texture: Option<Rc<Texture>>,
+    pub occlusion_texture: Option<Rc<Texture>>,
+    pub occlusion_strength: f32,
+    pub emissive_factor: Vector3<f32>,
+    pub emissive_texture: Option<Rc<Texture>>,
 
-    alpha_cutoff: f32,
-    alpha_mode: gltf::material::AlphaMode,
+    pub alpha_cutoff: f32,
+    pub alpha_mode: GltfAlphaMode,
 
-    double_sided: bool,
+    pub double_sided: bool,
 }
 
 impl Material {
-    pub fn from_gltf(
+    pub fn new(
         gltf_material: &GltfMaterial<'_>,
         root: &mut Root,
         document: &Document,
@@ -43,7 +43,6 @@ impl Material {
             index: gltf_material.index(),
             name: gltf_material.name().map(|s| s.into()),
             base_color_factor: pbr.base_color_factor().into(),
-            // TODO: perhaps RC only the underlying image? no, also opengl id...
             base_color_texture: None,
             metallic_factor: pbr.metallic_factor(),
             roughness_factor: pbr.roughness_factor(),
@@ -131,9 +130,8 @@ fn load_texture(
         return Rc::clone(tex);
     }
 
-    let texture = Rc::new(Texture::from_gltf(
-        g_texture, tex_coord, document, base_path,
-    ));
+    let texture = Rc::new(Texture::new(g_texture, tex_coord, document, base_path));
     root.textures.push(Rc::clone(&texture));
+
     texture
 }

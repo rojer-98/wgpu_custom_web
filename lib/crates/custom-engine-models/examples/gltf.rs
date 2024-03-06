@@ -1,12 +1,13 @@
-use std::path::PathBuf;
-
-use log::info;
+use std::{path::PathBuf, str::FromStr};
 
 use custom_engine_models::gltf::load;
 
 fn main() {
-    let path = PathBuf::from_str(env!("CARGO_MANIFEST_DIR")).unwrap();
-    if let Some(g) = load(path, 0) {
-        info!("{g:?}");
+    let mut path = PathBuf::from_str(env!("CARGO_MANIFEST_DIR")).unwrap();
+    path.push("data");
+    path.push("Lantern.gltf");
+
+    if let Some((r, s)) = load(path.to_str().unwrap(), 0) {
+        println!("{r:#?}\n{s:#?}");
     }
 }

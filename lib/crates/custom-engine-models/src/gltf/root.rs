@@ -21,7 +21,7 @@ impl Root {
         let nodes = document
             .doc
             .nodes()
-            .map(|g_node| Node::from_gltf(&g_node, &mut root, document, base_path))
+            .map(|g_node| Node::new(&g_node, &mut root, document, base_path))
             .collect();
         root.nodes = nodes;
         root.camera_nodes = root

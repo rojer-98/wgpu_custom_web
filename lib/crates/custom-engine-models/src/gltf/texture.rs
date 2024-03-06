@@ -2,7 +2,7 @@ use std::{fs::File, io::BufReader, path::Path};
 
 use base64::prelude::*;
 use gltf::{image::Source, texture::Texture as GltfTexture};
-use image::ImageFormat;
+use image::{DynamicImage, ImageFormat};
 
 use crate::gltf::document::Document;
 
@@ -11,19 +11,18 @@ pub struct Texture {
     pub index: usize, // glTF index
     pub name: Option<String>,
 
-    pub id: u32,        // OpenGL id
     pub tex_coord: u32, // the tex coord set to use
+    pub dyn_image: DynamicImage,
 }
 
 impl Texture {
-    pub fn from_gltf(
+    pub fn new(
         g_texture: &GltfTexture<'_>,
         tex_coord: u32,
         document: &Document,
         base_path: &Path,
     ) -> Texture {
         let buffers = &document.buffers;
-        let texture_id = 0;
 
         let g_img = g_texture.source();
         let img = match g_img.source() {
@@ -98,13 +97,13 @@ impl Texture {
         };
 
         // TODO: handle I/O problems
-        let _dyn_img = img.expect("Image loading failed.");
+        let dyn_image = img.expect("Image loading failed.");
 
         Texture {
             index: g_texture.index(),
             name: g_texture.name().map(|s| s.into()),
-            id: texture_id,
             tex_coord,
+            dyn_image,
         }
     }
 }

@@ -8,12 +8,12 @@ pub struct OrthographicCamera {
     pub index: usize,
     pub name: Option<String>,
 
-    projection_matrix: Matrix4<f32>,
-    znear: f32,
-    zfar: f32,
+    pub projection_matrix: Matrix4<f32>,
+    pub znear: f32,
+    pub zfar: f32,
 
-    xmag: f32,
-    ymag: f32,
+    pub xmag: f32,
+    pub ymag: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -21,12 +21,12 @@ pub struct PerspectiveCamera {
     pub index: usize,
     pub name: Option<String>,
 
-    projection_matrix: Matrix4<f32>,
-    znear: f32,
-    zfar: Option<f32>,
+    pub projection_matrix: Matrix4<f32>,
+    pub znear: f32,
+    pub zfar: Option<f32>,
 
-    fovy: Deg<f32>,
-    aspect_ratio: f32,
+    pub fovy: Deg<f32>,
+    pub aspect_ratio: f32,
 }
 
 #[derive(Debug, Clone)]

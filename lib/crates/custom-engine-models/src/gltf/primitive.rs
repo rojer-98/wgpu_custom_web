@@ -4,9 +4,9 @@ use cgmath::{Vector2, Vector3, Vector4, Zero};
 use collision::Aabb3;
 use log::warn;
 
-use crate::gltf::{Document, GltfMesh, GltfPrimitive, Material, Root};
+use crate::gltf::{Document, GltfMesh, GltfMode, GltfPrimitive, Material, Root};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Vertex {
     pub position: Vector3<f32>,
     pub normal: Vector3<f32>,
@@ -37,6 +37,12 @@ impl Default for Vertex {
 pub struct Primitive {
     pub index: usize,
     pub bounds: Aabb3<f32>,
+
+    pub material: Rc<Material>,
+    pub vertices: Vec<Vertex>,
+    pub indices: Option<Vec<u32>>,
+
+    pub mode: GltfMode,
 }
 
 impl Primitive {
@@ -130,11 +136,11 @@ impl Primitive {
             warn!("Ignoring further weight attributes, only supporting WEIGHTS_0. (mesh: {mesh_index}, primitive: {index})");
         }
 
-        let _indices = reader
+        let indices = reader
             .read_indices()
             .map(|read_indices| read_indices.into_u32().collect::<Vec<_>>());
 
-        let _mode = gltf_primitive.mode().as_gl_enum();
+        let mode = gltf_primitive.mode();
         let g_material = gltf_primitive.material();
         let mut material = None;
         if let Some(mat) = root
@@ -147,12 +153,19 @@ impl Primitive {
 
         if material.is_none() {
             // no else due to borrow checker madness
-            let mat = Rc::new(Material::from_gltf(&g_material, root, doc, base_path));
+            let mat = Rc::new(Material::new(&g_material, root, doc, base_path));
             root.materials.push(Rc::clone(&mat));
             material = Some(mat);
         };
         let material = material.unwrap();
 
-        Self { index, bounds }
+        Self {
+            index,
+            bounds,
+            material,
+            indices,
+            vertices,
+            mode,
+        }
     }
 }

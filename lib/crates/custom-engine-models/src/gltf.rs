@@ -22,7 +22,8 @@ use std::path::Path;
 
 use gltf::{
     buffer::Data as GltfBufferData, camera::Camera as GltfCamera, image::Data as GltfImageData,
-    material::Material as GltfMaterial, mesh::Mesh as GltfMesh, scene::Scene as GltfScene,
+    material::AlphaMode as GltfAlphaMode, material::Material as GltfMaterial,
+    mesh::Mesh as GltfMesh, mesh::Mode as GltfMode, scene::Scene as GltfScene,
     texture::Texture as GltfTexture, Document as GltfDocument, Primitive as GltfPrimitive,
 };
 use log::error;

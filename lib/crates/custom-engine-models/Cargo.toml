@@ -19,7 +19,7 @@ gltf = { version =  "1.4.0", features = [ "extras", "extensions" ] }
 image = { version = "0.24" }
 
 # Math 
-cgmath = "0.18.0"
+cgmath = "0.17.0"
 collision = "0.20.1"
 
 # Error
