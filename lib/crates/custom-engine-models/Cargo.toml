@@ -15,6 +15,10 @@ log = "0.4.20"
 
 # Files 
 tobj = "4.0.0"
+gltf = { version =  "1.4.0", features = [ "extras", "extensions" ] }
+
+# Math 
+cgmath = "0.18.0"
 
 # Error
 anyhow = "1.0.79"
