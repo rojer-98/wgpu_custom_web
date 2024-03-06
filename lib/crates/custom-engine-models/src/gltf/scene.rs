@@ -3,6 +3,7 @@ use collision::{Aabb, Aabb3, Union};
 
 use crate::gltf::{GltfScene, Root};
 
+#[derive(Debug)]
 pub struct Scene {
     pub name: Option<String>,
     pub nodes: Vec<usize>,

@@ -6,6 +6,7 @@ use image::ImageFormat;
 
 use crate::gltf::document::Document;
 
+#[derive(Debug)]
 pub struct Texture {
     pub index: usize, // glTF index
     pub name: Option<String>,

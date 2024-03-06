@@ -4,6 +4,7 @@ use cgmath::{Vector3, Vector4};
 
 use crate::gltf::{Document, GltfMaterial, GltfTexture, Root, Texture};
 
+#[derive(Debug)]
 pub struct Material {
     pub index: Option<usize>,
     pub name: Option<String>,

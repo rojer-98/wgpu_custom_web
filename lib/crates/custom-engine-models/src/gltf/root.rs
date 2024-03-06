@@ -4,7 +4,7 @@ use crate::gltf::{
     document::Document, material::Material, mesh::Mesh, node::Node, texture::Texture,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Root {
     pub nodes: Vec<Node>,
     pub meshes: Vec<Rc<Mesh>>, // TODO!: use gltf indices; drop Rc?

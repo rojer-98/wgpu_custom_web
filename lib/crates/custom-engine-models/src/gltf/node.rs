@@ -5,6 +5,7 @@ use collision::{Aabb, Aabb3, Union};
 
 use crate::gltf::{Camera, Document, Mesh, Root};
 
+#[derive(Debug)]
 pub struct Node {
     pub index: usize, // glTF index
     pub children: Vec<usize>,
