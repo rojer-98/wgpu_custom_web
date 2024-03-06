@@ -1,17 +1,19 @@
 use anyhow::Result;
+use log::error;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
-use log::{error, info};
 #[cfg(not(target_arch = "wasm32"))]
 use log4rs::{
     append::{console::ConsoleAppender, file::FileAppender},
     config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
 };
+#[cfg(target_arch = "wasm32")]
+use winit::event_loop::EventLoopProxy;
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, Event, KeyEvent, WindowEvent},
-    event_loop::EventLoop,
+    dpi::PhysicalSize,
+    event::{Event, KeyEvent, WindowEvent},
+    event_loop::{EventLoop, EventLoopBuilder},
     keyboard::{Key, NamedKey},
     window::{Window, WindowBuilder},
 };
@@ -21,13 +23,16 @@ use custom_engine_core::{
 };
 
 use crate::{
-    application::AppState,
+    application::{foreign::UserEvent, AppState},
     config::{EngineConfig, LoadConfig, WorkerKind},
     workers::{
         custom::SimpleCustomRender, model::SimpleModelRender, render_texture::SimpleRenderTexture,
         render_to_texture::SimpleRenderToTexture, simple::SimpleRender,
     },
 };
+
+#[cfg(target_arch = "wasm32")]
+pub static mut EVENT_LOOP_PROXY: Option<EventLoopProxy<UserEvent>> = None;
 
 #[derive(Debug)]
 pub struct EngineRunner {
@@ -102,6 +107,8 @@ impl EngineRunner {
         let mut r = SimpleRender::init(&mut worker_surface)?;
 
         event_loop.run(|event, control_flow| match event {
+            Event::UserEvent(u_e) => u_e.on_event(),
+
             Event::WindowEvent {
                 ref event,
                 window_id,
@@ -138,19 +145,24 @@ impl EngineRunner {
 
                     // Mouse
                     WindowEvent::CursorMoved { position, .. } => {
+                        if app_state.click_state.is_pressed() {
+                            let diff = (
+                                position.x - app_state.cursor_position.x,
+                                position.y - app_state.cursor_position.y,
+                            );
+                            r.move_to(&mut worker_surface, diff).unwrap();
+                        }
+
                         app_state.cursor_position = *position;
                     }
                     WindowEvent::MouseInput { state, .. } => {
-                        app_state.click_state = *state;
-
                         if state.is_pressed() {
-                            app_state.click_position = app_state.cursor_position;
-
                             app_state.clicked();
 
-                            let is_double_click = app_state.is_double_click();
                             r.click(&mut worker_surface, &app_state).unwrap();
                         }
+
+                        app_state.click_state = *state;
                     }
 
                     // Exit
@@ -191,8 +203,8 @@ impl EngineRunner {
         Ok(rw)
     }
 
-    fn env_init(&self) -> Result<(EventLoop<()>, Window)> {
-        let event_loop = EventLoop::new()?;
+    fn env_init(&self) -> Result<(EventLoop<UserEvent>, Window)> {
+        let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build()?;
         let window = WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(self.config.width, self.config.height))
             .build(&event_loop)?;
@@ -213,6 +225,10 @@ impl EngineRunner {
                         Some(())
                 })
                 .ok_or(anyhow!("Web Sys window init"))?;
+
+                unsafe {
+                    EVENT_LOOP_PROXY = Some(event_loop.create_proxy());
+                }
 
                 Ok((event_loop, window))
             } else {

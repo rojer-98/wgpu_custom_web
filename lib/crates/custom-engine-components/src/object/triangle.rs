@@ -1,16 +1,13 @@
-use std::{array::from_fn, task::Wake};
+use std::array::from_fn;
 
 use cgmath::{InnerSpace, Vector3, Vector4};
-use derive_more::{Deref, DerefMut};
 
 use custom_engine_core::traits::VertexLayout;
 
-use crate::primitives::Vertex;
+use crate::{object::metadata::ControlFlags, primitives::Vertex, to_shader_coords};
 
-#[derive(Debug, Deref, DerefMut)]
+#[derive(Debug)]
 pub struct Triangles {
-    #[deref]
-    #[deref_mut]
     inner: Vec<Triangle>,
 }
 
@@ -18,14 +15,32 @@ impl Triangles {
     pub fn click<T: Into<Vector3<f32>>>(&mut self, point: T) {
         let point = point.into();
 
-        self.iter_mut().for_each(|p| p.click(&point));
+        self.inner.iter_mut().for_each(|p| p.click(&point));
+    }
+
+    pub fn move_to<T: Into<Vector3<f32>>>(&mut self, m: T) {
+        let m = m.into();
+
+        self.inner
+            .iter_mut()
+            .filter(|t| (t.controls.x & ControlFlags::Click.to_u32()) == 1)
+            .for_each(|t| {
+                t.points.iter_mut().for_each(|p| {
+                    *p += m;
+                })
+            });
     }
 
     pub fn to_data(&self) -> Vec<Vertex> {
-        self.iter()
+        self.inner
+            .iter()
             .map(|t| t.to_data().to_vec())
             .flatten()
             .collect()
+    }
+
+    pub fn push(&mut self, t: Triangle) {
+        self.inner.push(t);
     }
 }
 
@@ -68,13 +83,32 @@ impl Triangle {
         verts
     }
 
+    pub fn to_data_converted(&self, size: (u32, u32)) -> [Vertex; 3] {
+        let mut verts = [Vertex::default(), Vertex::default(), Vertex::default()];
+
+        for (i, p) in self.points.iter().enumerate() {
+            let position = to_shader_coords(*p, size);
+            let mut controls = self.controls;
+            controls.x &= ControlFlags::Convert.to_u32();
+
+            verts[i] = Vertex {
+                controls: controls.into(),
+                color: self.color.into(),
+                position: position.into(),
+                ..Default::default()
+            };
+        }
+
+        verts
+    }
+
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         Vertex::desc()
     }
 
     pub fn click<'a, T: Into<&'a Vector3<f32>>>(&mut self, point: T) {
         if self.point_inside(point.into()) {
-            self.controls.x ^= 1;
+            self.controls.x ^= ControlFlags::Click.to_u32();
         }
     }
 
@@ -90,14 +124,7 @@ impl Triangle {
         let v = c.cross(b);
         let w = a.cross(c);
 
-        let uv_dot = u.dot(v);
-        let uw_dot = u.dot(w);
-
-        if uv_dot < 0. || uw_dot < 0. {
-            false
-        } else {
-            true
-        }
+        u.dot(v) > 0. && u.dot(w) > 0.
     }
 }
 

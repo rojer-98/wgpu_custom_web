@@ -15,6 +15,13 @@ log = "0.4.20"
 
 # Files 
 tobj = "4.0.0"
+gltf = { version =  "1.4.0", features = [ "extras", "extensions" ] }
+image = { version = "0.24" }
+
+# Math 
+cgmath = "0.17.0"
+collision = "0.20.1"
 
 # Error
 anyhow = "1.0.79"
+base64 = "0.22.0"

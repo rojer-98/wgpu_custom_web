@@ -3,14 +3,13 @@ use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
-    traits::{Builder, RenderWorker, VertexLayout},
+    traits::{Builder, RenderWorker},
     uniform::UniformDescription,
     worker::Worker,
 };
 
 use anyhow::Result;
 use cgmath::Vector3;
-use log::info;
 use winit::event::WindowEvent;
 
 use crate::{
@@ -42,6 +41,15 @@ impl SimpleRender {
             app.click_position.y as f32,
             0.,
         ));
+
+        w.update_buffer(self.vb_id, 0, &self.data.to_data())?;
+
+        Ok(())
+    }
+
+    pub fn move_to(&mut self, w: &mut Worker<'_>, diff: (f64, f64)) -> Result<(), EngineError> {
+        self.data
+            .move_to(Vector3::new(diff.0 as f32, diff.1 as f32, 0.));
 
         w.update_buffer(self.vb_id, 0, &self.data.to_data())?;
 

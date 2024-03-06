@@ -1,6 +1,10 @@
-pub fn to_shader_coords(position: (f64, f64), size: (u32, u32)) -> (f32, f32) {
+use cgmath::Vector3;
+
+pub fn to_shader_coords<T: Into<Vector3<f32>>>(position: T, size: (u32, u32)) -> Vector3<f32> {
+    let position = position.into();
+
     let (w, h) = size;
-    let (x, y) = (position.0 as f32, position.1 as f32);
+    let (x, y) = (position.x as f32, position.y as f32);
     let (half_w, half_h) = (w as f32 / 2., h as f32 / 2.);
 
     let out_x = if x > half_w {
@@ -15,5 +19,5 @@ pub fn to_shader_coords(position: (f64, f64), size: (u32, u32)) -> (f32, f32) {
         1. - y / half_h
     };
 
-    (out_x, out_y)
+    Vector3::new(out_x, out_y, position.z)
 }
