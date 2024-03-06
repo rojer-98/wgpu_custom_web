@@ -3,14 +3,13 @@ use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
-    traits::{Builder, RenderWorker, VertexLayout},
+    traits::{Builder, RenderWorker},
     uniform::UniformDescription,
     worker::Worker,
 };
 
 use anyhow::Result;
-use cgmath::{num_traits::Pow, Vector3};
-use log::info;
+use cgmath::Vector3;
 use winit::event::WindowEvent;
 
 use crate::{

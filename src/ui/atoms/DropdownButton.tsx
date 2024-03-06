@@ -1,5 +1,6 @@
 import Dropdown from "react-bootstrap/Dropdown";
 import DropdownButton from "react-bootstrap/DropdownButton";
+import { test_user_event_action } from "../../connectors/runner";
 
 export function BasicButtonExample() {
   return (
@@ -30,6 +31,7 @@ export function MenuAlignEndExample() {
 
 function MyAlert(event: string | null) {
   if (event) {
+    test_user_event_action();
     alert("Key call " + event);
   }
 }

@@ -1,5 +1,5 @@
-mod foreign;
-mod key_bindings;
+pub mod foreign;
+pub mod key_bindings;
 
 use instant::{Duration, Instant};
 use winit::{dpi::PhysicalPosition, event::ElementState};

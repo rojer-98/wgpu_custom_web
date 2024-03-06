@@ -1,16 +1,13 @@
 use std::array::from_fn;
 
 use cgmath::{InnerSpace, Vector3, Vector4};
-use derive_more::{Deref, DerefMut};
 
 use custom_engine_core::traits::VertexLayout;
 
 use crate::{object::metadata::ControlFlags, primitives::Vertex, to_shader_coords};
 
-#[derive(Debug, Deref, DerefMut)]
+#[derive(Debug)]
 pub struct Triangles {
-    #[deref]
-    #[deref_mut]
     inner: Vec<Triangle>,
 }
 
@@ -18,13 +15,14 @@ impl Triangles {
     pub fn click<T: Into<Vector3<f32>>>(&mut self, point: T) {
         let point = point.into();
 
-        self.iter_mut().for_each(|p| p.click(&point));
+        self.inner.iter_mut().for_each(|p| p.click(&point));
     }
 
     pub fn move_to<T: Into<Vector3<f32>>>(&mut self, m: T) {
         let m = m.into();
 
-        self.iter_mut()
+        self.inner
+            .iter_mut()
             .filter(|t| (t.controls.x & ControlFlags::Click.to_u32()) == 1)
             .for_each(|t| {
                 t.points.iter_mut().for_each(|p| {
@@ -34,10 +32,15 @@ impl Triangles {
     }
 
     pub fn to_data(&self) -> Vec<Vertex> {
-        self.iter()
+        self.inner
+            .iter()
             .map(|t| t.to_data().to_vec())
             .flatten()
             .collect()
+    }
+
+    pub fn push(&mut self, t: Triangle) {
+        self.inner.push(t);
     }
 }
 

@@ -4,6 +4,8 @@ use thiserror::*;
 pub enum EngineError {
     #[error("shader file `{0}` was not found")]
     FileNotFound(String),
+    #[error("Event Loop closed")]
+    EventLoopClosed,
 
     // foreign errors
     #[error(transparent)]
