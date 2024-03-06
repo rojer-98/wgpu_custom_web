@@ -1,9 +1,8 @@
 use std::{path::Path, rc::Rc};
 
-use cgmath::{Transform, Vector3, Vector4};
-use gltf::material::Material as GltfMaterial;
+use cgmath::{Vector3, Vector4};
 
-use crate::gltf::{document::Document, root::Root, texture::Texture};
+use crate::gltf::{Document, GltfMaterial, GltfTexture, Root, Texture};
 
 pub struct Material {
     pub index: Option<usize>,
@@ -32,16 +31,16 @@ pub struct Material {
 
 impl Material {
     pub fn from_gltf(
-        g_material: &GltfMaterial<'_>,
+        gltf_material: &GltfMaterial<'_>,
         root: &mut Root,
         document: &Document,
         base_path: &Path,
     ) -> Material {
-        let pbr = g_material.pbr_metallic_roughness();
+        let pbr = gltf_material.pbr_metallic_roughness();
 
         let mut material = Material {
-            index: g_material.index(),
-            name: g_material.name().map(|s| s.into()),
+            index: gltf_material.index(),
+            name: gltf_material.name().map(|s| s.into()),
             base_color_factor: pbr.base_color_factor().into(),
             // TODO: perhaps RC only the underlying image? no, also opengl id...
             base_color_texture: None,
@@ -55,13 +54,13 @@ impl Material {
             occlusion_texture: None,
             occlusion_strength: 0.0,
 
-            emissive_factor: g_material.emissive_factor().into(),
+            emissive_factor: gltf_material.emissive_factor().into(),
             emissive_texture: None,
 
-            alpha_cutoff: g_material.alpha_cutoff().unwrap_or_default(),
-            alpha_mode: g_material.alpha_mode(),
+            alpha_cutoff: gltf_material.alpha_cutoff().unwrap_or_default(),
+            alpha_mode: gltf_material.alpha_mode(),
 
-            double_sided: g_material.double_sided(),
+            double_sided: gltf_material.double_sided(),
         };
 
         if let Some(color_info) = pbr.base_color_texture() {
@@ -82,7 +81,7 @@ impl Material {
                 base_path,
             ));
         }
-        if let Some(normal_texture) = g_material.normal_texture() {
+        if let Some(normal_texture) = gltf_material.normal_texture() {
             material.normal_texture = Some(load_texture(
                 &normal_texture.texture(),
                 normal_texture.tex_coord(),
@@ -92,7 +91,7 @@ impl Material {
             ));
             material.normal_scale = Some(normal_texture.scale());
         }
-        if let Some(occ_texture) = g_material.occlusion_texture() {
+        if let Some(occ_texture) = gltf_material.occlusion_texture() {
             material.occlusion_texture = Some(load_texture(
                 &occ_texture.texture(),
                 occ_texture.tex_coord(),
@@ -102,7 +101,7 @@ impl Material {
             ));
             material.occlusion_strength = occ_texture.strength();
         }
-        if let Some(em_info) = g_material.emissive_texture() {
+        if let Some(em_info) = gltf_material.emissive_texture() {
             material.emissive_texture = Some(load_texture(
                 &em_info.texture(),
                 em_info.tex_coord(),
@@ -117,7 +116,7 @@ impl Material {
 }
 
 fn load_texture(
-    g_texture: &gltf::texture::Texture<'_>,
+    g_texture: &GltfTexture<'_>,
     tex_coord: u32,
     root: &mut Root,
     document: &Document,

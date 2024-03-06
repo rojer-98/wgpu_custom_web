@@ -1,14 +1,8 @@
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-    path::Path,
-};
+use std::{fs::File, io::BufReader, path::Path};
 
-use gltf::{
-    image::Source,
-    texture::{MinFilter, Texture as GltfTexture},
-};
-use image::{DynamicImage::*, GenericImageView, ImageFormat};
+use base64::prelude::*;
+use gltf::{image::Source, texture::Texture as GltfTexture};
+use image::ImageFormat;
 
 use crate::gltf::document::Document;
 
@@ -28,10 +22,8 @@ impl Texture {
         base_path: &Path,
     ) -> Texture {
         let buffers = &document.buffers;
-        let mut texture_id = 0;
+        let texture_id = 0;
 
-        // TODO!: share images via Rc? detect if occurs?
-        // TODO!!: better I/O abstraction...
         let g_img = g_texture.source();
         let img = match g_img.source() {
             Source::View { view, mime_type } => {
@@ -52,7 +44,7 @@ impl Texture {
             Source::Uri { uri, mime_type } => {
                 if uri.starts_with("data:") {
                     let encoded = uri.split(',').nth(1).unwrap();
-                    let data = base64::decode(&encoded).unwrap();
+                    let data = BASE64_STANDARD.decode(&encoded).unwrap();
                     let mime_type = if let Some(ty) = mime_type {
                         ty
                     } else {
@@ -105,7 +97,7 @@ impl Texture {
         };
 
         // TODO: handle I/O problems
-        let dyn_img = img.expect("Image loading failed.");
+        let _dyn_img = img.expect("Image loading failed.");
 
         Texture {
             index: g_texture.index(),

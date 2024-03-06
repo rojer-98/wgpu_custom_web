@@ -1,5 +1,7 @@
 use cgmath::{Deg, Matrix4, Rad, Zero};
-use gltf::{self, camera::Projection};
+use gltf::camera::Projection;
+
+use crate::gltf::GltfCamera;
 
 #[derive(Debug, Clone)]
 pub struct OrthographicCamera {
@@ -34,7 +36,7 @@ pub enum Camera {
 }
 
 impl Camera {
-    pub fn new<'a>(gltf_camera: &'a gltf::Camera<'a>) -> Self {
+    pub fn new<'a>(gltf_camera: &'a GltfCamera<'a>) -> Self {
         Self::from(gltf_camera)
     }
 

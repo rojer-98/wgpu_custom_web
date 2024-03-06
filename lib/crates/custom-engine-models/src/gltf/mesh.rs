@@ -2,22 +2,20 @@ use std::path::Path;
 
 use collision::{Aabb, Aabb3, Union};
 
-use crate::gltf::{document::Document, primitive::Primitive, root::Root};
+use crate::gltf::{Document, GltfMesh, Primitive, Root};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
-    pub index: usize, // glTF index
-    pub primitives: Vec<Primitive>,
-    // TODO: weights
-    // pub weights: Vec<Rc<?>>
+    pub index: usize,
     pub name: Option<String>,
 
-    pub bounds: Aabb3<f32>,
+    primitives: Vec<Primitive>,
+    bounds: Aabb3<f32>,
 }
 
 impl Mesh {
     pub fn from_gltf(
-        g_mesh: &gltf::Mesh<'_>,
+        g_mesh: &GltfMesh<'_>,
         root: &mut Root,
         document: &Document,
         base_path: &Path,
@@ -25,7 +23,7 @@ impl Mesh {
         let primitives: Vec<Primitive> = g_mesh
             .primitives()
             .enumerate()
-            .map(|(i, g_prim)| Primitive::new(&g_prim, root, g_mesh, document))
+            .map(|(_i, g_prim)| Primitive::new(&g_prim, root, g_mesh, document, base_path))
             .collect();
 
         let bounds = primitives

@@ -1,9 +1,9 @@
 use std::{path::Path, rc::Rc};
 
-use cgmath::{Matrix4, Quaternion, SquareMatrix, Transform, Transform3, Vector3};
+use cgmath::{Matrix4, Quaternion, SquareMatrix, Vector3};
 use collision::{Aabb, Aabb3, Union};
 
-use crate::gltf::{camera::Camera, document::Document, mesh::Mesh, root::Root};
+use crate::gltf::{Camera, Document, Mesh, Root};
 
 pub struct Node {
     pub index: usize, // glTF index
@@ -43,8 +43,8 @@ impl Node {
             }
 
             if mesh.is_none() {
-                // not using else due to borrow-checking madness
                 mesh = Some(Rc::new(Mesh::from_gltf(&g_mesh, root, document, base_path)));
+
                 root.meshes.push(mesh.clone().unwrap());
             }
         }
@@ -85,7 +85,7 @@ impl Node {
     pub fn update_bounds(&mut self, root: &mut Root) {
         self.bounds = Aabb3::zero();
         if let Some(ref mesh) = self.mesh {
-            self.bounds = mesh.bounds.transform(&self.final_transform);
+            //self.bounds = mesh.bounds.transform(&self.final_transform);
         }
 
         for node_id in &self.children {
