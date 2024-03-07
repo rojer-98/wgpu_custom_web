@@ -1,18 +1,13 @@
-use std::fs::{read, read_to_string};
-
 use anyhow::Result;
 use cfg_if::cfg_if;
-use pollster::block_on;
 
-pub fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
-    block_on(async {
-        let bin = load_binary(file_name.as_ref()).await;
-        if let Err(e) = bin {
-            panic!("{e}");
-        }
+pub async fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
+    let bin = load_binary(file_name.as_ref()).await;
+    if let Err(e) = bin {
+        panic!("{e}");
+    }
 
-        bin.ok()
-    })
+    bin.ok()
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -34,23 +29,6 @@ fn format_url(file_name: &str) -> Result<reqwest::Url> {
     Ok(base.join(file_name)?)
 }
 
-#[allow(dead_code)]
-async fn load_string(file_name: &str) -> Result<String> {
-    cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name)?;
-            let txt = reqwest::get(url)
-                .await?
-                .text()
-                .await?;
-        } else {
-            let txt = read_to_string(file_name)?;
-        }
-    }
-
-    Ok(txt)
-}
-
 async fn load_binary(file_name: &str) -> Result<Vec<u8>> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -61,6 +39,8 @@ async fn load_binary(file_name: &str) -> Result<Vec<u8>> {
                 .await?
                 .to_vec();
         } else {
+            use std::fs::read;
+
             let data = read(file_name)?;
         }
     }

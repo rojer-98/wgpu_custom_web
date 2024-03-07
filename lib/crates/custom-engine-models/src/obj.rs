@@ -21,75 +21,54 @@ pub struct FileTextures {
 }
 
 impl FileTextures {
-    pub fn new(current_path: &PathBuf, m: &Material) -> Self {
+    pub async fn new(current_path: &PathBuf, m: &Material) -> Self {
+        let dissolve_texture = if let Some(t) = m.dissolve_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+        let normal_texture = if let Some(t) = m.normal_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+        let shininess_texture = if let Some(t) = m.shininess_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+        let specular_texture = if let Some(t) = m.specular_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+        let diffuse_texture = if let Some(t) = m.diffuse_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+        let ambient_texture = if let Some(t) = m.ambient_texture.as_ref() {
+            Self::get_texture_data(current_path, t).await
+        } else {
+            None
+        };
+
         FileTextures {
-            dissolve_texture: m
-                .dissolve_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
-            normal_texture: m
-                .normal_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
-            shininess_texture: m
-                .shininess_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
-            specular_texture: m
-                .specular_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
-            diffuse_texture: m
-                .diffuse_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
-            ambient_texture: m
-                .ambient_texture
-                .clone()
-                .map(|t| {
-                    let mut current_path = current_path.clone();
-                    current_path.push(t);
-                    let current_path = current_path.to_str().unwrap();
-
-                    get_data(current_path)
-                })
-                .flatten(),
+            dissolve_texture,
+            normal_texture,
+            shininess_texture,
+            specular_texture,
+            diffuse_texture,
+            ambient_texture,
         }
+    }
+
+    async fn get_texture_data(current_path: &PathBuf, t: &str) -> Option<Vec<u8>> {
+        let mut current_path = current_path.clone();
+        current_path.push(t);
+        let current_path = current_path.to_str().unwrap();
+
+        get_data(current_path).await
     }
 }
 
@@ -109,28 +88,33 @@ pub struct ObjFile {
 }
 
 impl ObjFile {
-    pub fn new_data(
-        name: String,
+    pub async fn new_data(
+        file_name: &str,
         obj_data: Vec<u8>,
-        mtl_obj_data: HashMap<String, Vec<u8>>,
-        mut textures: HashMap<String, FileTextures>,
-        load_options: LoadOptions,
+        mtl_obj_data: HashMap<&str, Vec<u8>>,
     ) -> Result<Self> {
         let mut obj_reader = BufReader::new(Cursor::new(obj_data));
         let (models, materials) = {
-            let (mdls, mat_res) = tobj::load_obj_buf(&mut obj_reader, &load_options, |p| {
-                if let Some(p) = p.file_name() {
-                    // Be sure `path` is correct
-                    let f = p.to_str().ok_or(tobj::LoadError::MaterialParseError)?;
-                    let mtl_data = mtl_obj_data
-                        .get(f)
-                        .ok_or(tobj::LoadError::MaterialParseError)?;
+            let (mdls, mat_res) = tobj::load_obj_buf(
+                &mut obj_reader,
+                &LoadOptions {
+                    single_index: true,
+                    triangulate: true,
+                    ..Default::default()
+                },
+                |p| {
+                    if let Some(p) = p.file_name() {
+                        let f = p.to_str().ok_or(tobj::LoadError::MaterialParseError)?;
+                        let mtl_data = mtl_obj_data
+                            .get(f)
+                            .ok_or(tobj::LoadError::MaterialParseError)?;
 
-                    return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
-                }
+                        return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
+                    }
 
-                tobj::MTLLoadResult::Err(tobj::LoadError::MaterialParseError)
-            })?;
+                    tobj::MTLLoadResult::Err(tobj::LoadError::MaterialParseError)
+                },
+            )?;
             if let Err(e) = mat_res {
                 error!("{e}")
             }
@@ -138,40 +122,35 @@ impl ObjFile {
             (mdls, mat_res?)
         };
 
+        let mut current_path = PathBuf::from(file_name);
+        current_path.pop();
+
         let models = models.into_iter().enumerate().collect::<HashMap<_, _>>();
 
-        let materials = materials
-            .into_iter()
-            .enumerate()
-            .map(|(i, m)| -> Result<(usize, LoadedMaterial)> {
-                Ok((
-                    i,
-                    LoadedMaterial {
-                        files: textures
-                            .remove(&m.name)
-                            .ok_or(anyhow!("cannot find loaded textures in `{}`.mtl", m.name))?,
-                        material: m,
-                    },
-                ))
-            })
-            .filter_map(|res| {
-                if let Err(e) = res {
-                    error!("{e}");
-                    None
-                } else {
-                    Some(res.unwrap())
-                }
-            })
-            .collect::<HashMap<_, _>>();
+        let mut ms = HashMap::new();
+        for (i, m) in materials.into_iter().enumerate() {
+            ms.insert(
+                i,
+                LoadedMaterial {
+                    files: FileTextures::new(&current_path, &m).await,
+                    material: m,
+                },
+            );
+        }
 
         Ok(Self {
             models,
-            materials,
-            name,
+            materials: ms,
+            name: current_path
+                .file_name()
+                .ok_or(anyhow!("Filename is not found"))?
+                .to_str()
+                .unwrap()
+                .to_string(),
         })
     }
 
-    pub fn new(file_name: &str) -> Result<Self> {
+    pub async fn new(file_name: &str) -> Result<Self> {
         let (models, materials) = {
             let (mdls, mat_res) = tobj::load_obj(
                 file_name,
@@ -192,25 +171,21 @@ impl ObjFile {
         let mut current_path = PathBuf::from(file_name);
         current_path.pop();
 
-        let materials = materials
-            .into_iter()
-            .enumerate()
-            .map(|(i, m)| {
-                (
-                    i,
-                    LoadedMaterial {
-                        files: FileTextures::new(&current_path, &m),
-                        material: m,
-                    },
-                )
-            })
-            .collect::<HashMap<_, _>>();
-        let name = file_name.to_string();
+        let mut ms = HashMap::new();
+        for (i, m) in materials.into_iter().enumerate() {
+            ms.insert(
+                i,
+                LoadedMaterial {
+                    files: FileTextures::new(&current_path, &m).await,
+                    material: m,
+                },
+            );
+        }
 
         Ok(Self {
             models,
-            materials,
-            name,
+            materials: ms,
+            name: file_name.to_string(),
         })
     }
 

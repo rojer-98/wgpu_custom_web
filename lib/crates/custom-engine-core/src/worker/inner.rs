@@ -2,7 +2,6 @@ use std::mem::size_of_val;
 
 use image::{ImageBuffer, Rgba};
 use log::{debug, info, warn};
-use pollster::block_on;
 
 use crate::{
     buffer::Buffer,
@@ -146,7 +145,7 @@ impl<'a> Worker<'a> {
         self.update_buffer_data(buffer, offset, data)
     }
 
-    pub fn read_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub async fn read_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
         name: &str,
@@ -155,14 +154,14 @@ impl<'a> Worker<'a> {
         let buffer = uniform
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
-        let buffer_data = block_on(async { buffer.read_buffer_async(self.device).await })?;
+        let buffer_data = buffer.read_buffer_async(self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
         Ok(cast_data.to_vec())
     }
 
-    pub fn read_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub async fn read_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
         name: &str,
@@ -171,30 +170,30 @@ impl<'a> Worker<'a> {
         let buffer = storage
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;
-        let buffer_data = block_on(async { buffer.read_buffer_async(self.device).await })?;
+        let buffer_data = buffer.read_buffer_async(self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
         Ok(cast_data.to_vec())
     }
 
-    pub fn read_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub async fn read_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
     ) -> Result<Vec<T>, CoreError> {
         let buffer = self.get_buffer_ref(id)?;
-        let buffer_data = block_on(async { buffer.read_buffer_async(self.device).await })?;
+        let buffer_data = buffer.read_buffer_async(self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
         Ok(cast_data.to_vec())
     }
 
-    pub fn read_plain_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub async fn read_plain_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         buffer: &'_ Buffer,
     ) -> Result<Vec<T>, CoreError> {
-        let buffer_data = block_on(async { buffer.read_buffer_async(self.device).await })?;
+        let buffer_data = buffer.read_buffer_async(self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
@@ -213,14 +212,14 @@ impl<'a> Worker<'a> {
         self.view.as_ref().ok_or(CoreError::NotInitView)
     }
 
-    pub fn present(&mut self) -> Result<(), CoreError> {
+    pub async fn present(&mut self) -> Result<(), CoreError> {
         let v = self.view.take();
 
         match v {
             Some(View::Surface(s)) => s.present(),
             Some(View::Texture(rt, b)) => {
                 if let RuntimeKind::Texture(path_to, kind) = &self.runtime_kind {
-                    let data = block_on(async { b.read_buffer_async(&self.device).await })?;
+                    let data = b.read_buffer_async(&self.device).await?;
                     let i_b = ImageBuffer::<Rgba<u8>, _>::from_raw(self.size.0, self.size.1, data)
                         .ok_or(CoreError::ImageBufferCreate)?;
                     let save_path = format!("{path_to}.{kind}");

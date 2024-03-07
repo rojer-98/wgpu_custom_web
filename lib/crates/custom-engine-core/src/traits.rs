@@ -36,23 +36,22 @@ pub trait Builder<'a> {
 }
 
 pub trait RenderWorker {
-    fn init(_: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(_: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized;
-    fn reinit(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>
+    async fn reinit(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
+        Ok(())
+    }
+    async fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
         Ok(())
     }
 
     fn update(&mut self, _: &mut Worker<'_>, _: &WindowEvent) -> Result<(), CoreError> {
         Ok(())
     }
-    fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
-        Ok(())
-    }
-
     fn resize(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
         Ok(())
     }

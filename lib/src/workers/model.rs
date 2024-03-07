@@ -1,12 +1,10 @@
-use std::{fs::read, path::Path};
-
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
 };
 use custom_engine_core::{
     errors::CoreError,
-    instance::{InstanceRaw, Instances},
+    instance::Instances,
     model::Model,
     render_pass::RenderStage,
     render_pass::{
@@ -20,6 +18,7 @@ use custom_engine_core::{
 use custom_engine_models::obj::ObjFile;
 
 use anyhow::Result;
+use log::info;
 use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
@@ -46,12 +45,34 @@ pub struct SimpleModelRender {
 }
 
 impl RenderWorker for SimpleModelRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
-        let obj_file_name = "./assets/models/cube/cube.obj".to_string();
-        let obj_file = ObjFile::new(&obj_file_name)?;
+        //let obj_file_name = "./assets/models/cube/cube.obj".to_string();
+        //let obj_file = ObjFile::new(&obj_file_name)?;
+        use custom_engine_models::utils::get_data;
+        use std::collections::HashMap;
+
+        let obj_file_data = get_data("./assets/models/cube/cube.obj").await.unwrap();
+        let mtl_file_data = {
+            let mut h_m = HashMap::new();
+
+            h_m.insert(
+                "cube.mtl",
+                get_data("./assets/models/cube/cube.mtl").await.unwrap(),
+            );
+
+            h_m
+        };
+
+        let obj_file = ObjFile::new_data(
+            "./assets/models/cube/cube.obj",
+            obj_file_data,
+            mtl_file_data,
+        )
+        .await?;
+        info!("New data: {obj_file:?}");
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
@@ -265,7 +286,7 @@ impl RenderWorker for SimpleModelRender {
         })
     }
 
-    fn reinit(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
+    async fn reinit(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -331,7 +352,7 @@ impl RenderWorker for SimpleModelRender {
         Ok(())
     }
 
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleModelRender {
             m_id,
             p_id,
@@ -420,7 +441,7 @@ impl RenderWorker for SimpleModelRender {
             );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
         Ok(())
     }

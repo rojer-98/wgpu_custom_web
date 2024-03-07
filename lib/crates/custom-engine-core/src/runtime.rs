@@ -1,6 +1,5 @@
 use derive_more::Display;
 use log::{debug, info};
-use pollster::block_on;
 use winit::window::Window;
 
 use crate::{context::Context, errors::CoreError, worker::Worker};
@@ -50,7 +49,7 @@ pub struct Runtime<'a> {
 }
 
 impl<'a> Runtime<'a> {
-    pub fn init(window: Option<&'a Window>) -> Result<Self, CoreError> {
+    pub async fn init(window: Option<&'a Window>) -> Result<Self, CoreError> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
@@ -59,16 +58,14 @@ impl<'a> Runtime<'a> {
         let surface = window.and_then(|w| instance.create_surface(w).ok());
 
         let power_preference = wgpu::PowerPreference::default();
-        let adapter = block_on(async {
-            instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference,
-                    compatible_surface: surface.as_ref(),
-                    force_fallback_adapter: false,
-                })
-                .await
-        })
-        .ok_or(CoreError::RequestAdapter)?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference,
+                compatible_surface: surface.as_ref(),
+                force_fallback_adapter: false,
+            })
+            .await
+            .ok_or(CoreError::RequestAdapter)?;
 
         let adapter_info = adapter.get_info();
         let adapter_features = adapter.features();
@@ -102,18 +99,16 @@ Adapter:
     Limits: {limits:#?}"
         );
 
-        let (device, queue) = block_on(async {
-            adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        required_features: adapter_features,
-                        required_limits: limits.clone(),
-                        label: None,
-                    },
-                    None,
-                )
-                .await
-        })?;
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: adapter_features,
+                    required_limits: limits.clone(),
+                    label: None,
+                },
+                None,
+            )
+            .await?;
 
         Ok(Self {
             limits,
