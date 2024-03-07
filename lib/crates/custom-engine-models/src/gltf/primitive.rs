@@ -56,7 +56,11 @@ impl Primitive {
         let index = gltf_primitive.index();
         let mesh_index = mesh.index();
 
-        let reader = gltf_primitive.reader(|b| Some(&doc.buffers[b.index()]));
+        let buffers = &doc.buffers;
+        let reader = gltf_primitive.reader(|b| {
+            println!("{b:#?}");
+            Some(&buffers[b.index()])
+        });
         let positions = {
             let iter = reader.read_positions().unwrap_or_else(|| {
                 panic!(
