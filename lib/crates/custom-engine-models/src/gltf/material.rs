@@ -154,7 +154,12 @@ fn load_texture(
         return Rc::clone(tex);
     }
 
-    let texture = Rc::new(Texture::new(g_texture, tex_coord, document, base_path));
+    let texture = match Texture::new(g_texture, tex_coord, document, base_path) {
+        Ok(t) => t,
+        Err(e) => panic!("{e}"),
+    };
+    let texture = Rc::new(texture);
+
     root.textures.push(Rc::clone(&texture));
 
     texture

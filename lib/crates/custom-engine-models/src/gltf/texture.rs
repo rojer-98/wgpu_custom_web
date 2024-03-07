@@ -1,5 +1,6 @@
 use std::{fs::File, io::BufReader, path::Path};
 
+use anyhow::{anyhow, Result};
 use base64::prelude::*;
 use gltf::{image::Source, texture::Texture as GltfTexture};
 use image::{DynamicImage, ImageFormat};
@@ -21,7 +22,7 @@ impl Texture {
         tex_coord: u32,
         document: &Document,
         base_path: &Path,
-    ) -> Texture {
+    ) -> Result<Texture> {
         let buffers = &document.buffers;
 
         let g_img = g_texture.source();
@@ -34,11 +35,13 @@ impl Texture {
                 match mime_type {
                     "image/jpeg" => image::load_from_memory_with_format(data, ImageFormat::Jpeg),
                     "image/png" => image::load_from_memory_with_format(data, ImageFormat::Png),
-                    _ => panic!(
-                        "unsupported image type (image: {}, mime_type: {})",
-                        g_img.index(),
-                        mime_type
-                    ),
+                    _ => {
+                        return Err(anyhow!(
+                            "unsupported image type (image: {}, mime_type: {})",
+                            g_img.index(),
+                            mime_type
+                        ))
+                    }
                 }
             }
             Source::Uri { uri, mime_type } => {
@@ -64,11 +67,13 @@ impl Texture {
                             image::load_from_memory_with_format(&data, ImageFormat::Jpeg)
                         }
                         "image/png" => image::load_from_memory_with_format(&data, ImageFormat::Png),
-                        _ => panic!(
-                            "unsupported image type (image: {}, mime_type: {})",
-                            g_img.index(),
-                            mime_type
-                        ),
+                        _ => {
+                            return Err(anyhow!(
+                                "unsupported image type (image: {}, mime_type: {})",
+                                g_img.index(),
+                                mime_type
+                            ))
+                        }
                     }
                 } else if let Some(mime_type) = mime_type {
                     let path = base_path
@@ -80,11 +85,13 @@ impl Texture {
                     match mime_type {
                         "image/jpeg" => image::load(reader, ImageFormat::Jpeg),
                         "image/png" => image::load(reader, ImageFormat::Png),
-                        _ => panic!(
-                            "unsupported image type (image: {}, mime_type: {})",
-                            g_img.index(),
-                            mime_type
-                        ),
+                        _ => {
+                            return Err(anyhow!(
+                                "unsupported image type (image: {}, mime_type: {})",
+                                g_img.index(),
+                                mime_type
+                            ))
+                        }
                     }
                 } else {
                     let path = base_path
@@ -97,13 +104,13 @@ impl Texture {
         };
 
         // TODO: handle I/O problems
-        let dyn_image = img.expect("Image loading failed.");
+        let dyn_image = img?;
 
-        Texture {
+        Ok(Texture {
             index: g_texture.index(),
             name: g_texture.name().map(|s| s.into()),
             tex_coord,
             dyn_image,
-        }
+        })
     }
 }

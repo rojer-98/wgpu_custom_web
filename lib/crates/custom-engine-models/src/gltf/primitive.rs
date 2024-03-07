@@ -1,5 +1,6 @@
 use std::{path::Path, rc::Rc};
 
+use anyhow::{anyhow, Result};
 use cgmath::{Vector2, Vector3, Vector4, Zero};
 use collision::Aabb3;
 use log::warn;
@@ -52,21 +53,15 @@ impl Primitive {
         mesh: &'a GltfMesh<'a>,
         doc: &'a Document,
         base_path: &'a Path,
-    ) -> Self {
+    ) -> Result<Self> {
         let index = gltf_primitive.index();
         let mesh_index = mesh.index();
 
         let buffers = &doc.buffers;
-        let reader = gltf_primitive.reader(|b| {
-            println!("{b:#?}");
-            Some(&buffers[b.index()])
-        });
+        let reader = gltf_primitive.reader(|b| Some(&buffers[b.index()]));
         let positions = {
-            let iter = reader.read_positions().unwrap_or_else(|| {
-                panic!(
-                    "primitives must have the POSITION attribute (mesh: {mesh_index}, primitive: {index})",
-                )
-            });
+            let iter = reader.read_positions().ok_or(anyhow!("primitives must have the POSITION attribute (mesh: {mesh_index}, primitive: {index})"))?;
+
             iter.collect::<Vec<_>>()
         };
 
@@ -150,7 +145,7 @@ impl Primitive {
         if let Some(mat) = root
             .materials
             .iter()
-            .find(|m| (***m).index == g_material.index())
+            .find(|m| m.index == g_material.index())
         {
             material = Rc::clone(mat).into()
         }
@@ -163,13 +158,13 @@ impl Primitive {
         };
         let material = material.unwrap();
 
-        Self {
+        Ok(Self {
             index,
             bounds,
             material,
             indices,
             vertices,
             mode,
-        }
+        })
     }
 }
