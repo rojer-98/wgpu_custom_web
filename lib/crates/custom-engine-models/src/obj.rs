@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use log::{error, info};
 use tobj::{LoadOptions, Material, Model};
 
-use crate::utils::get_image_data;
+use crate::utils::get_data;
 
 #[derive(Debug, Default)]
 pub struct FileTextures {
@@ -29,8 +29,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
             normal_texture: m
@@ -39,8 +40,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
             shininess_texture: m
@@ -49,8 +51,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
             specular_texture: m
@@ -59,8 +62,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
             diffuse_texture: m
@@ -69,8 +73,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
             ambient_texture: m
@@ -79,8 +84,9 @@ impl FileTextures {
                 .map(|t| {
                     let mut current_path = current_path.clone();
                     current_path.push(t);
+                    let current_path = current_path.to_str().unwrap();
 
-                    get_image_data(current_path)
+                    get_data(current_path)
                 })
                 .flatten(),
         }

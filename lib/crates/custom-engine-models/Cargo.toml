@@ -6,9 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Helpers
-derive_more = "0.99.17"
-derivative = "2.2.0"
+# Async
+pollster = "0.3.0"
 
 # Log 
 log = "0.4.20"
@@ -38,3 +37,21 @@ collision = "0.20.1"
 # Error
 anyhow = "1.0.79"
 base64 = "0.22.0"
+
+# Net
+reqwest = "0.11.24"
+
+# Helpers
+derive_more = "0.99.17"
+cfg-if = "1"
+rand = "0.8.5"
+derivative = "2.2.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]  
+getrandom = { version = "0.2", features = [ "js" ] }
+web-sys = { version = "0.3.68", features = [ 
+  "Document",
+  "Window",
+  "Location",
+]}
+wasm-bindgen = { version = "0.2.62" }

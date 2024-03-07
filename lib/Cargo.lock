@@ -701,14 +701,21 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.0",
+ "cfg-if 1.0.0",
  "cgmath 0.17.0",
  "collision",
  "derivative",
  "derive_more",
+ "getrandom",
  "gltf",
  "image",
  "log",
+ "pollster",
+ "rand 0.8.5",
+ "reqwest",
  "tobj",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

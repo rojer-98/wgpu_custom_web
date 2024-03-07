@@ -36,11 +36,10 @@ impl Texture {
                     "image/jpeg" => image::load_from_memory_with_format(data, ImageFormat::Jpeg),
                     "image/png" => image::load_from_memory_with_format(data, ImageFormat::Png),
                     _ => {
+                        let image_index = g_img.index();
                         return Err(anyhow!(
-                            "unsupported image type (image: {}, mime_type: {})",
-                            g_img.index(),
-                            mime_type
-                        ))
+                            "unsupported image type (image: {image_index}, mime_type: {mime_type})",
+                        ));
                     }
                 }
             }
@@ -68,11 +67,10 @@ impl Texture {
                         }
                         "image/png" => image::load_from_memory_with_format(&data, ImageFormat::Png),
                         _ => {
+                            let image_index = g_img.index();
                             return Err(anyhow!(
-                                "unsupported image type (image: {}, mime_type: {})",
-                                g_img.index(),
-                                mime_type
-                            ))
+                                "unsupported image type (image: {image_index}, mime_type: {mime_type})",
+                            ));
                         }
                     }
                 } else if let Some(mime_type) = mime_type {
@@ -86,11 +84,10 @@ impl Texture {
                         "image/jpeg" => image::load(reader, ImageFormat::Jpeg),
                         "image/png" => image::load(reader, ImageFormat::Png),
                         _ => {
+                            let image_index = g_img.index();
                             return Err(anyhow!(
-                                "unsupported image type (image: {}, mime_type: {})",
-                                g_img.index(),
-                                mime_type
-                            ))
+                                "unsupported image type (image: {image_index}, mime_type: {mime_type})",
+                            ));
                         }
                     }
                 } else {
@@ -103,14 +100,11 @@ impl Texture {
             }
         };
 
-        // TODO: handle I/O problems
-        let dyn_image = img?;
-
         Ok(Texture {
             index: g_texture.index(),
             name: g_texture.name().map(|s| s.into()),
             tex_coord,
-            dyn_image,
+            dyn_image: img?,
         })
     }
 }
