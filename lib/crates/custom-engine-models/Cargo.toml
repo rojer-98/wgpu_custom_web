@@ -29,8 +29,8 @@ gltf = { version =  "1.4.0", features = [
 image = { version = "0.24", features = [ "hdr", "png", "jpeg" ] }
 
 # Math 
-cgmath = "0.17.0"
-collision = "0.20.1"
+cgmath = "0.18.0"
+collision = { git = "https://github.com/rojer-98/collision-rs.git" }
 
 # Error
 anyhow = "1.0.79"

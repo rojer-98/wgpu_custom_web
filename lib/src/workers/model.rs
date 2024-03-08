@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
@@ -56,13 +54,11 @@ impl RenderWorker for SimpleModelRender {
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
-            .obj_file(obj_file)
+            .file(obj_file.into())
             .diffuse_view_binding(0)
             .diffuse_sampler_binding(1)
-            .diffuse_format(TextureKind::HDR)
             .normal_view_binding(2)
             .normal_sampler_binding(3)
-            .normal_format(TextureKind::HDR)
             .mesh_vertex_binding(0)
             .build()?;
         w.load_model(&m);

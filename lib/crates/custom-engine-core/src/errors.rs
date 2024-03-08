@@ -54,8 +54,8 @@ pub enum CoreError {
     ContextFieldIsNotExist(String, usize),
     #[error("cannot create image buffer")]
     ImageBufferCreate,
-    #[error("obj file in `{0} is not set`")]
-    EmptyObjFile(String),
+    #[error("model file in `{0} is not set`")]
+    EmptyModelFile(String),
     #[error("uniform buffer `{0}` isn't found")]
     UniformBufferNotFound(String),
     #[error("storage `{0}` isn't found")]

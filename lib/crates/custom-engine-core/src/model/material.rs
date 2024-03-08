@@ -3,9 +3,17 @@ use log::debug;
 use crate::{
     bind_group::{BindGroup, BindGroupBuilder},
     errors::CoreError,
-    texture::{RenderTexture, RenderTextureBuilder, TextureKind},
+    texture::{RenderTexture, RenderTextureBuilder},
     traits::Builder,
 };
+
+#[derive(Debug)]
+pub struct MaterialTextureParams<'a> {
+    pub view_binding: Option<u32>,
+    pub sampler_binding: Option<u32>,
+    pub texture_data: Option<&'a [u8]>,
+    pub format: wgpu::TextureFormat,
+}
 
 #[derive(Debug)]
 pub struct Material {
@@ -36,15 +44,10 @@ pub struct MaterialBuilder<'a> {
     name: Option<&'a str>,
     layout: Option<&'a wgpu::BindGroupLayout>,
 
-    diffuse_view_binding: Option<u32>,
-    diffuse_sampler_binding: Option<u32>,
-    diffuse_texture_data: Option<&'a [u8]>,
-    diffuse_format: wgpu::TextureFormat,
+    diffuse: Option<MaterialTextureParams<'a>>,
+    normal: Option<MaterialTextureParams<'a>>,
 
-    normal_view_binding: Option<u32>,
-    normal_sampler_binding: Option<u32>,
-    normal_texture_data: Option<&'a [u8]>,
-    normal_format: wgpu::TextureFormat,
+    material_binding: u32,
 
     device: &'a wgpu::Device,
 }
@@ -59,15 +62,10 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
         Self {
             name: None,
             id: None,
-            normal_view_binding: None,
-            normal_sampler_binding: None,
-            normal_texture_data: None,
-            diffuse_view_binding: None,
-            diffuse_sampler_binding: None,
-            diffuse_texture_data: None,
-            diffuse_format: TextureKind::Render.into(),
-            normal_format: TextureKind::NormalMap.into(),
+            normal: None,
+            diffuse: None,
             layout: None,
+            material_binding: 0,
             device,
         }
     }
@@ -78,16 +76,11 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
     {
         Self {
             name: None,
-            normal_view_binding: None,
-            normal_sampler_binding: None,
-            normal_texture_data: None,
-            diffuse_view_binding: None,
-            diffuse_sampler_binding: None,
-            diffuse_texture_data: None,
             id: Some(id),
+            normal: None,
+            diffuse: None,
             layout: None,
-            diffuse_format: TextureKind::Render.into(),
-            normal_format: TextureKind::NormalMap.into(),
+            material_binding: 0,
             device,
         }
     }
@@ -100,22 +93,28 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
         let material_name = format!("Material: {id}");
 
         let name = self.name.unwrap_or(&material_name);
+        let material_binding = self.material_binding;
 
-        let diffuse_texture_data = self
-            .diffuse_texture_data
+        let diffuse = self
+            .diffuse
+            .ok_or(CoreError::EmptyDiffuseTexture(name.to_string()))?;
+
+        let diffuse_texture_data = diffuse
+            .texture_data
             .ok_or(CoreError::EmptyDiffuseTexture(name.to_string()))?;
         let diffuse_texture = RenderTextureBuilder::new(self.device)
             .label(&format!("Diffuse texture: {name}"))
             .bytes(diffuse_texture_data)
+            .format(diffuse.format)
             .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
             .build()?;
         let diff_view = diffuse_texture.view();
         let diff_sampler = diffuse_texture.sampler()?;
-        let diffuse_view_binding = self
-            .diffuse_view_binding
+        let diffuse_view_binding = diffuse
+            .view_binding
             .ok_or(CoreError::EmptyBinding(name.to_string()))?;
-        let diffuse_sampler_binding = self
-            .diffuse_sampler_binding
+        let diffuse_sampler_binding = diffuse
+            .sampler_binding
             .ok_or(CoreError::EmptyBinding(name.to_string()))?;
 
         let name = name.to_string();
@@ -127,25 +126,28 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
         let bind_group = BindGroupBuilder::new(self.device)
             .label(&bind_group_name)
             .layout(layout)
-            .binding(0)
+            .binding(material_binding)
             .entries_view(diffuse_view_binding, diff_view)
             .entries_sampler(diffuse_sampler_binding, diff_sampler);
 
-        let (bind_group, normal_texture) = if let Some(data) = self.normal_texture_data {
+        let (bind_group, normal_texture) = if let Some(normal) = self.normal {
+            let normal_texture_data = normal
+                .texture_data
+                .ok_or(CoreError::EmptyNormalTexture(name.to_string()))?;
             let normal_texture = RenderTextureBuilder::new(self.device)
                 .label(&format!("Normal texture: {name}"))
-                .bytes(&data)
-                .format(TextureKind::NormalMap)
+                .bytes(&normal_texture_data)
+                .format(normal.format)
                 .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
                 .build()?;
 
             let norm_view = normal_texture.view();
             let norm_sampler = normal_texture.sampler()?;
-            let normal_view_binding = self
-                .normal_view_binding
+            let normal_view_binding = normal
+                .view_binding
                 .ok_or(CoreError::EmptyBinding(name.to_string()))?;
-            let normal_sampler_binding = self
-                .normal_sampler_binding
+            let normal_sampler_binding = normal
+                .sampler_binding
                 .ok_or(CoreError::EmptyBinding(name.to_string()))?;
 
             (
@@ -184,48 +186,23 @@ impl<'a> MaterialBuilder<'a> {
         self
     }
 
-    pub fn diffuse_texture_data(mut self, diffuse_texture_data: Option<&'a [u8]>) -> Self {
-        self.diffuse_texture_data = diffuse_texture_data.into();
-        self
-    }
-
-    pub fn normal_texture_data(mut self, normal_texture_data: Option<&'a [u8]>) -> Self {
-        self.normal_texture_data = normal_texture_data.into();
-        self
-    }
-
     pub fn layout(mut self, layout: &'a wgpu::BindGroupLayout) -> Self {
         self.layout = Some(layout);
         self
     }
 
-    pub fn normal_sampler_binding(mut self, normal_sampler_binding: u32) -> Self {
-        self.normal_sampler_binding = Some(normal_sampler_binding);
+    pub fn diffuse(mut self, mtp: MaterialTextureParams<'a>) -> Self {
+        self.diffuse = Some(mtp);
         self
     }
 
-    pub fn normal_view_binding(mut self, normal_view_binding: u32) -> Self {
-        self.normal_view_binding = Some(normal_view_binding);
+    pub fn normal(mut self, mtp: MaterialTextureParams<'a>) -> Self {
+        self.normal = Some(mtp);
         self
     }
 
-    pub fn diffuse_sampler_binding(mut self, diffuse_sampler_binding: u32) -> Self {
-        self.diffuse_sampler_binding = Some(diffuse_sampler_binding);
-        self
-    }
-
-    pub fn diffuse_view_binding(mut self, diffuse_view_binding: u32) -> Self {
-        self.diffuse_view_binding = Some(diffuse_view_binding);
-        self
-    }
-
-    pub fn diffuse_format<T: Into<wgpu::TextureFormat>>(mut self, diffuse_format: T) -> Self {
-        self.diffuse_format = diffuse_format.into();
-        self
-    }
-
-    pub fn normal_format<T: Into<wgpu::TextureFormat>>(mut self, normal_format: T) -> Self {
-        self.normal_format = normal_format.into();
+    pub fn material_binding(mut self, binding: u32) -> Self {
+        self.material_binding = binding;
         self
     }
 }

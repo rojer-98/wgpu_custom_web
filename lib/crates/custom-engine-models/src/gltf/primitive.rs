@@ -8,7 +8,7 @@ use log::warn;
 use crate::gltf::{Document, GltfMesh, GltfMode, GltfPrimitive, Material, Root};
 
 #[derive(Debug, Clone)]
-pub struct Vertex {
+pub struct PrimitiveVertex {
     pub position: Vector3<f32>,
     pub normal: Vector3<f32>,
     pub tangent: Vector4<f32>,
@@ -19,9 +19,9 @@ pub struct Vertex {
     pub weights_0: Vector4<f32>,
 }
 
-impl Default for Vertex {
+impl Default for PrimitiveVertex {
     fn default() -> Self {
-        Vertex {
+        PrimitiveVertex {
             position: Vector3::zero(),
             normal: Vector3::zero(),
             tangent: Vector4::zero(),
@@ -40,7 +40,7 @@ pub struct Primitive {
     pub bounds: Aabb3<f32>,
 
     pub material: Rc<Material>,
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<PrimitiveVertex>,
     pub indices: Option<Vec<u32>>,
 
     pub mode: GltfMode,
@@ -71,11 +71,11 @@ impl Primitive {
             max: bounds.max.into(),
         };
 
-        let mut vertices: Vec<Vertex> = positions
+        let mut vertices: Vec<PrimitiveVertex> = positions
             .into_iter()
-            .map(|position| Vertex {
+            .map(|position| PrimitiveVertex {
                 position: Vector3::from(position),
-                ..Vertex::default()
+                ..Default::default()
             })
             .collect();
 
