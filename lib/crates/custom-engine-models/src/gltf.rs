@@ -27,7 +27,6 @@ use gltf::{
     mesh::Mesh as GltfMesh, mesh::Mode as GltfMode, scene::Scene as GltfScene,
     texture::Texture as GltfTexture, Document as GltfDocument, Primitive as GltfPrimitive,
 };
-use log::info;
 
 use crate::utils::get_data;
 
@@ -45,7 +44,6 @@ impl GltfFile {
             let slice = get_data(file_name)
                 .await
                 .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
-            info!("{slice:?}");
             gltf::import_slice(slice)?
         } else {
             gltf::import(file_name)?

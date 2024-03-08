@@ -156,7 +156,7 @@ fn load_texture(
 
     let texture = match Texture::new(g_texture, tex_coord, document, base_path) {
         Ok(t) => t,
-        Err(e) => panic!("{e}"),
+        Err(e) => panic!("Load texture: {e}"),
     };
     let texture = Rc::new(texture);
 
