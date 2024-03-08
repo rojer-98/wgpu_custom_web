@@ -8,6 +8,9 @@ edition = "2021"
 [features]
 default = []
 
+[profile.release]
+panic = "abort"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -126,7 +129,6 @@ web-sys = { version = "0.3.68", features = [
   "GpuDeviceLostReason",
   "GpuError",
   "GpuErrorFilter",
-  # "GpuExtent2dDict", Not yet implemented in web_sys
   "GpuExtent3dDict",
   "GpuFeatureName",
   "GpuFilterMode",

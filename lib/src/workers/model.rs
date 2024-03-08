@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
@@ -15,10 +17,9 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-use custom_engine_models::obj::ObjFile;
+use custom_engine_models::{gltf::GltfFile, obj::ObjFile};
 
 use anyhow::Result;
-use log::info;
 use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
@@ -50,29 +51,8 @@ impl RenderWorker for SimpleModelRender {
     where
         Self: Sized,
     {
-        //let obj_file_name = "./assets/models/cube/cube.obj".to_string();
-        //let obj_file = ObjFile::new(&obj_file_name)?;
-        use custom_engine_models::utils::get_data;
-        use std::collections::HashMap;
-
-        let obj_file_data = get_data("./assets/models/cube/cube.obj").await.unwrap();
-        let mtl_file_data = {
-            let mut h_m = HashMap::new();
-
-            h_m.insert(
-                "cube.mtl",
-                get_data("./assets/models/cube/cube.mtl").await.unwrap(),
-            );
-
-            h_m
-        };
-
-        let obj_file = ObjFile::new_data(
-            "./assets/models/cube/cube.obj",
-            obj_file_data,
-            mtl_file_data,
-        )
-        .await?;
+        let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
+        let gltf_file = GltfFile::new("./assets/models/toycar/ToyCar.glb").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder

@@ -88,33 +88,34 @@ pub struct ObjFile {
 }
 
 impl ObjFile {
-    pub async fn new_data(
-        file_name: &str,
-        obj_data: Vec<u8>,
-        mtl_obj_data: HashMap<&str, Vec<u8>>,
-    ) -> Result<Self> {
+    pub async fn new(file_name: &str) -> Result<Self> {
+        let obj_data = get_data(file_name)
+            .await
+            .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
         let mut obj_reader = BufReader::new(Cursor::new(obj_data));
+
         let (models, materials) = {
-            let (mdls, mat_res) = tobj::load_obj_buf(
+            let mut current_path = PathBuf::from(file_name);
+            current_path.pop();
+
+            let (mdls, mat_res) = tobj::load_obj_buf_async(
                 &mut obj_reader,
                 &LoadOptions {
                     single_index: true,
                     triangulate: true,
                     ..Default::default()
                 },
-                |p| {
-                    if let Some(p) = p.file_name() {
-                        let f = p.to_str().ok_or(tobj::LoadError::MaterialParseError)?;
-                        let mtl_data = mtl_obj_data
-                            .get(f)
-                            .ok_or(tobj::LoadError::MaterialParseError)?;
+                |p| async {
+                    let mut current_path = current_path.clone();
+                    current_path.push(p);
 
-                        return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
-                    }
+                    let mtl_data = get_data(current_path.to_str().unwrap()).await.unwrap();
 
-                    tobj::MTLLoadResult::Err(tobj::LoadError::MaterialParseError)
+                    return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
                 },
-            )?;
+            )
+            .await?;
+
             if let Err(e) = mat_res {
                 error!("{e}")
             }
@@ -147,45 +148,6 @@ impl ObjFile {
                 .to_str()
                 .unwrap()
                 .to_string(),
-        })
-    }
-
-    pub async fn new(file_name: &str) -> Result<Self> {
-        let (models, materials) = {
-            let (mdls, mat_res) = tobj::load_obj(
-                file_name,
-                &LoadOptions {
-                    single_index: true,
-                    triangulate: true,
-                    ..Default::default()
-                },
-            )?;
-            if let Err(e) = mat_res {
-                error!("{e}")
-            }
-
-            (mdls, mat_res?)
-        };
-
-        let models = models.into_iter().enumerate().collect::<HashMap<_, _>>();
-        let mut current_path = PathBuf::from(file_name);
-        current_path.pop();
-
-        let mut ms = HashMap::new();
-        for (i, m) in materials.into_iter().enumerate() {
-            ms.insert(
-                i,
-                LoadedMaterial {
-                    files: FileTextures::new(&current_path, &m).await,
-                    material: m,
-                },
-            );
-        }
-
-        Ok(Self {
-            models,
-            materials: ms,
-            name: file_name.to_string(),
         })
     }
 
