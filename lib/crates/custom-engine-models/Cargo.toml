@@ -6,17 +6,27 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Helpers
-derive_more = "0.99.17"
-derivative = "2.2.0"
 
 # Log 
 log = "0.4.20"
 
 # Files 
-tobj = "4.0.0"
-gltf = { version =  "1.4.0", features = [ "extras", "extensions" ] }
-image = { version = "0.24" }
+tobj = { version = "4.0", features = ["async"]}
+gltf = { version =  "1.4.0", features = [ 
+  "extras", 
+  "extensions", 
+  "KHR_lights_punctual",
+  "KHR_materials_pbrSpecularGlossiness",
+  "KHR_materials_unlit",
+  "KHR_texture_transform",
+  "KHR_materials_transmission",
+  "KHR_materials_ior",
+  "KHR_materials_variants",
+  "KHR_materials_volume",
+  "KHR_materials_specular",
+  "KHR_materials_emissive_strength",
+] }
+image = { version = "0.24", features = [ "hdr", "png", "jpeg" ] }
 
 # Math 
 cgmath = "0.17.0"
@@ -25,3 +35,19 @@ collision = "0.20.1"
 # Error
 anyhow = "1.0.79"
 base64 = "0.22.0"
+
+# Helpers
+derive_more = "0.99.17"
+cfg-if = "1"
+rand = "0.8.5"
+derivative = "2.2.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]  
+reqwest = { version = "0.11.24" }
+getrandom = { version = "0.2", features = [ "js" ] }
+web-sys = { version = "0.3.68", features = [ 
+  "Document",
+  "Window",
+  "Location",
+]}
+wasm-bindgen = { version = "0.2.62" }

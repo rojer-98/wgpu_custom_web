@@ -1,4 +1,4 @@
-use std::{fs::read, path::Path};
+use std::collections::HashMap;
 
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
@@ -6,7 +6,7 @@ use custom_engine_components::{
 };
 use custom_engine_core::{
     errors::CoreError,
-    instance::{InstanceRaw, Instances},
+    instance::Instances,
     model::Model,
     render_pass::RenderStage,
     render_pass::{
@@ -17,7 +17,7 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-use custom_engine_models::obj::ObjFile;
+use custom_engine_models::{gltf::GltfFile, obj::ObjFile};
 
 use anyhow::Result;
 use winit::event::WindowEvent;
@@ -43,15 +43,16 @@ pub struct SimpleModelRender {
 
     camera: Camera,
     light: Light,
+    size: (u32, u32),
 }
 
 impl RenderWorker for SimpleModelRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
-        let obj_file_name = "./assets/models/cube/cube.obj".to_string();
-        let obj_file = ObjFile::new(&obj_file_name)?;
+        let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
+        let gltf_file = GltfFile::new("./assets/models/toycar/ToyCar.glb").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
@@ -171,13 +172,13 @@ impl RenderWorker for SimpleModelRender {
             .source(sh_data)
             .build()?;
 
-        let t_size = w.size();
+        let size = w.size();
         let (hdr_t_id, hdr_t_builder) = w.create_render_texture_id();
         let hdr_t = hdr_t_builder
             .label("HDR texture")
             .format(format)
             .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .texture_size(t_size)
+            .texture_size(size)
             .view_layout_entry(wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -262,10 +263,11 @@ impl RenderWorker for SimpleModelRender {
 
             light,
             camera,
+            size,
         })
     }
 
-    fn reinit(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
+    async fn reinit(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -331,7 +333,7 @@ impl RenderWorker for SimpleModelRender {
         Ok(())
     }
 
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleModelRender {
             m_id,
             p_id,
@@ -339,6 +341,7 @@ impl RenderWorker for SimpleModelRender {
             c_id,
             hdr_p_id,
             hdr_t_id,
+            size,
             ..
         } = self;
 
@@ -353,11 +356,10 @@ impl RenderWorker for SimpleModelRender {
         let hdr_bind_group = hdr_texture.bind_group()?;
         let hdr_t_view = hdr_texture.view();
 
-        let texture_size = w.size();
         let d_t = w
             .create_depth_texture()
             .label("Depth Texture")
-            .texture_size(texture_size)
+            .texture_size(*size)
             .build()?;
         let d_t_view = d_t.view;
 
@@ -420,7 +422,7 @@ impl RenderWorker for SimpleModelRender {
             );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
         Ok(())
     }

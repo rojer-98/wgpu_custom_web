@@ -68,7 +68,7 @@ pub struct SimpleRenderTexture {
 }
 
 impl RenderWorker for SimpleRenderTexture {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -193,13 +193,6 @@ impl RenderWorker for SimpleRenderTexture {
         })
     }
 
-    fn reinit(&mut self, _w: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        Ok(())
-    }
-
     fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
         self.camera.update(event);
         w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
@@ -207,7 +200,7 @@ impl RenderWorker for SimpleRenderTexture {
         Ok(())
     }
 
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderTexture {
             vb_id,
             p_id,
@@ -249,7 +242,7 @@ impl RenderWorker for SimpleRenderTexture {
         );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
         Ok(())
     }

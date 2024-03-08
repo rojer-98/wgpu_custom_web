@@ -8,6 +8,7 @@ use log4rs::{
     config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
 };
+use pollster::block_on;
 #[cfg(target_arch = "wasm32")]
 use winit::event_loop::EventLoopProxy;
 use winit::{
@@ -18,17 +19,12 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use custom_engine_core::{
-    errors::CoreError, runtime::Runtime, traits::RenderWorker, worker::Worker,
-};
+use custom_engine_core::{errors::CoreError, runtime::Runtime, traits::RenderWorker};
 
 use crate::{
-    application::{foreign::UserEvent, AppState},
-    config::{EngineConfig, LoadConfig, WorkerKind},
-    workers::{
-        custom::SimpleCustomRender, model::SimpleModelRender, render_texture::SimpleRenderTexture,
-        render_to_texture::SimpleRenderToTexture, simple::SimpleRender,
-    },
+    application::foreign::UserEvent,
+    config::{EngineConfig, LoadConfig},
+    workers::model::SimpleModelRender,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -98,13 +94,13 @@ impl EngineRunner {
         Ok(self)
     }
 
-    pub fn run(self) -> Result<()> {
+    pub async fn run(self) -> Result<()> {
         let (event_loop, window) = self.env_init()?;
 
-        let runtime = Runtime::init(Some(&window))?;
-        let mut app_state = AppState::new();
+        let runtime = Runtime::init(Some(&window)).await?;
+        //let mut app_state = AppState::new();
         let mut worker_surface = runtime.worker_surface()?;
-        let mut r = SimpleRender::init(&mut worker_surface)?;
+        let mut r = SimpleModelRender::init(&mut worker_surface).await?;
 
         event_loop.run(|event, control_flow| match event {
             Event::UserEvent(u_e) => u_e.on_event(),
@@ -118,7 +114,7 @@ impl EngineRunner {
                 match event {
                     // Worker
                     WindowEvent::RedrawRequested => {
-                        match r.render(&mut worker_surface) {
+                        match block_on(async { r.render(&mut worker_surface).await }) {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => {
                                 worker_surface.resize()
                             }
@@ -144,26 +140,26 @@ impl EngineRunner {
                     }
 
                     // Mouse
-                    WindowEvent::CursorMoved { position, .. } => {
-                        if app_state.click_state.is_pressed() {
-                            let diff = (
-                                position.x - app_state.cursor_position.x,
-                                position.y - app_state.cursor_position.y,
-                            );
-                            r.move_to(&mut worker_surface, diff).unwrap();
-                        }
+                    // WindowEvent::CursorMoved { position, .. } => {
+                    //     if app_state.click_state.is_pressed() {
+                    //         let diff = (
+                    //             position.x - app_state.cursor_position.x,
+                    //             position.y - app_state.cursor_position.y,
+                    //         );
+                    //         r.move_to(&mut worker_surface, diff).unwrap();
+                    //     }
 
-                        app_state.cursor_position = *position;
-                    }
-                    WindowEvent::MouseInput { state, .. } => {
-                        if state.is_pressed() {
-                            app_state.clicked();
+                    //     app_state.cursor_position = *position;
+                    // }
+                    // WindowEvent::MouseInput { state, .. } => {
+                    //     if state.is_pressed() {
+                    //         app_state.clicked();
 
-                            r.click(&mut worker_surface, &app_state).unwrap();
-                        }
+                    //         r.click(&mut worker_surface, &app_state).unwrap();
+                    //     }
 
-                        app_state.click_state = *state;
-                    }
+                    //     app_state.click_state = *state;
+                    // }
 
                     // Exit
                     WindowEvent::CloseRequested
@@ -184,23 +180,6 @@ impl EngineRunner {
         })?;
 
         Ok(())
-    }
-
-    // Helpers
-    fn render_init(&self, worker: &mut Worker<'_>) -> Result<Box<dyn RenderWorker>> {
-        use WorkerKind::*;
-
-        let rw = match self.config.worker {
-            Simple => Box::new(SimpleRender::init(worker)?) as Box<dyn RenderWorker>,
-            RenderTexture => Box::new(SimpleRenderTexture::init(worker)?) as Box<dyn RenderWorker>,
-            Model => Box::new(SimpleModelRender::init(worker)?) as Box<dyn RenderWorker>,
-            Custom => Box::new(SimpleCustomRender::init(worker)?) as Box<dyn RenderWorker>,
-            RenderToTexture => {
-                Box::new(SimpleRenderToTexture::init(worker)?) as Box<dyn RenderWorker>
-            }
-        };
-
-        Ok(rw)
     }
 
     fn env_init(&self) -> Result<(EventLoop<UserEvent>, Window)> {

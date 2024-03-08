@@ -49,7 +49,6 @@ impl Camera {
         }
     }
 
-    #[rustfmt::skip]
     pub fn update_projection_matrix(&mut self) {
         use Camera::*;
 
@@ -61,25 +60,50 @@ impl Camera {
                 let n = o.znear;
 
                 o.projection_matrix = Matrix4::new(
-                    1.0 / r, 0.0,     0.0,               0.0, 
-                    0.0,     1.0 / t, 0.0,               0.0,
-                    0.0,     0.0,     2.0 / (n - f),     0.0, 
-                    0.0,     0.0,     (f + n) / (n - f), 1.0, 
+                    1.0 / r,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0 / t,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    2.0 / (n - f),
+                    0.0,
+                    0.0,
+                    0.0,
+                    (f + n) / (n - f),
+                    1.0,
                 );
             }
             Perspective(p) => {
                 if let Some(zfar) = p.zfar {
-                    p.projection_matrix = cgmath::perspective(p.fovy, p.aspect_ratio, p.znear, zfar);
+                    p.projection_matrix =
+                        cgmath::perspective(p.fovy, p.aspect_ratio, p.znear, zfar);
                 } else {
                     let a = p.aspect_ratio;
                     let y = Rad::from(p.fovy).0;
                     let n = p.znear;
 
                     p.projection_matrix = Matrix4::new(
-                        1.0 / (a * (0.5 * y).tan()), 0.0,                   0.0,     0.0,
-                        0.0,                         1.0 / (0.5 * y).tan(), 0.0,     0.0,
-                        0.0,                         0.0,                  -1.0,     -1.0,
-                        0.0,                         0.0,                  -2.0 * n, 0.0,
+                        1.0 / (a * (0.5 * y).tan()),
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0 / (0.5 * y).tan(),
+                        0.0,
+                        0.0,
+                        0.0,
+                        0.0,
+                        -1.0,
+                        -1.0,
+                        0.0,
+                        0.0,
+                        -2.0 * n,
+                        0.0,
                     );
                 }
             }

@@ -7,19 +7,17 @@ use crate::gltf::{
 #[derive(Default, Debug)]
 pub struct Root {
     pub nodes: Vec<Node>,
-    pub meshes: Vec<Rc<Mesh>>, // TODO!: use gltf indices; drop Rc?
+    pub meshes: Vec<Rc<Mesh>>,
     pub textures: Vec<Rc<Texture>>,
     pub materials: Vec<Rc<Material>>,
-
-    pub camera_nodes: Vec<usize>, // indices of camera nodes
-                                  // TODO!: joint_nodes, mesh_nodes?
+    pub camera_nodes: Vec<usize>,
 }
 
 impl Root {
-    pub fn from_gltf(document: &Document, base_path: &Path) -> Self {
+    pub fn new(document: &Document, base_path: &Path) -> Self {
         let mut root = Root::default();
         let nodes = document
-            .doc
+            .inner
             .nodes()
             .map(|g_node| Node::new(&g_node, &mut root, document, base_path))
             .collect();

@@ -33,10 +33,8 @@ impl Node {
 
         let mut mesh = None;
         if let Some(g_mesh) = g_node.mesh() {
-            if let Some(existing_mesh) = root
-                .meshes
-                .iter()
-                .find(|mesh| (***mesh).index == g_mesh.index())
+            if let Some(existing_mesh) =
+                root.meshes.iter().find(|mesh| mesh.index == g_mesh.index())
             {
                 mesh = Some(Rc::clone(existing_mesh));
             }

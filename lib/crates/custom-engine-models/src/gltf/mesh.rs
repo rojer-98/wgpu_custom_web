@@ -22,7 +22,12 @@ impl Mesh {
     ) -> Mesh {
         let primitives: Vec<Primitive> = g_mesh
             .primitives()
-            .map(|g_prim| Primitive::new(&g_prim, root, g_mesh, document, base_path))
+            .map(
+                |g_prim| match Primitive::new(&g_prim, root, g_mesh, document, base_path) {
+                    Ok(m) => m,
+                    Err(e) => panic!("Mesh new: {e}"),
+                },
+            )
             .collect();
 
         let bounds = primitives

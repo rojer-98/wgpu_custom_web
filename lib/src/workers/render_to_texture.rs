@@ -8,7 +8,6 @@ use custom_engine_core::{
 use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
-use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -42,7 +41,7 @@ pub struct SimpleRenderToTexture {
 }
 
 impl RenderWorker for SimpleRenderToTexture {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -105,18 +104,7 @@ impl RenderWorker for SimpleRenderToTexture {
         Ok(Self { p_id, vb_id })
     }
 
-    fn update(&mut self, _w: &mut Worker<'_>, _event: &WindowEvent) -> Result<(), CoreError> {
-        Ok(())
-    }
-
-    fn reinit(&mut self, _w: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        Ok(())
-    }
-
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderToTexture {
             ref vb_id,
             ref p_id,
@@ -150,7 +138,7 @@ impl RenderWorker for SimpleRenderToTexture {
         );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
         Ok(())
     }

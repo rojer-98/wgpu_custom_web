@@ -9,8 +9,6 @@ use custom_engine_core::{
 use custom_engine_derive::VertexLayout;
 
 use anyhow::Result;
-use log::info;
-use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -55,7 +53,7 @@ pub struct SimpleCustomRender {
 }
 
 impl RenderWorker for SimpleCustomRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -145,18 +143,7 @@ impl RenderWorker for SimpleCustomRender {
         })
     }
 
-    fn reinit(&mut self, _w: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        Ok(())
-    }
-
-    fn update(&mut self, _w: &mut Worker<'_>, _event: &WindowEvent) -> Result<(), CoreError> {
-        Ok(())
-    }
-
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleCustomRender {
             vb_id, p_id, s_id, ..
         } = self;
@@ -190,9 +177,9 @@ impl RenderWorker for SimpleCustomRender {
         );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
-        let out = w.read_storage_buffer::<Vertex>(s.id, "Storage")?;
+        let out = w.read_storage_buffer::<Vertex>(s.id, "Storage").await?;
         log::info!("{out:#?}");
 
         w.update_storage_buffer(

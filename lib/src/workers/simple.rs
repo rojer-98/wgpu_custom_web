@@ -10,7 +10,6 @@ use custom_engine_core::{
 
 use anyhow::Result;
 use cgmath::Vector3;
-use winit::event::WindowEvent;
 
 use crate::{
     application::AppState,
@@ -58,7 +57,7 @@ impl SimpleRender {
 }
 
 impl RenderWorker for SimpleRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -163,17 +162,6 @@ impl RenderWorker for SimpleRender {
         })
     }
 
-    fn reinit(&mut self, _w: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        Ok(())
-    }
-
-    fn update(&mut self, _w: &mut Worker<'_>, _event: &WindowEvent) -> Result<(), CoreError> {
-        Ok(())
-    }
-
     fn resize(&mut self, w: &mut Worker<'_>) -> std::prelude::v1::Result<(), CoreError> {
         let size = w.size();
         let c_data = UData {
@@ -185,7 +173,7 @@ impl RenderWorker for SimpleRender {
         Ok(())
     }
 
-    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRender {
             vb_id, p_id, c_id, ..
         } = self;
@@ -219,7 +207,7 @@ impl RenderWorker for SimpleRender {
         );
 
         w.render(r_p)?;
-        w.present()?;
+        w.present().await?;
 
         if self.counter < 4 {
             self.counter += 1;
