@@ -27,8 +27,14 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(catch)]
-pub async fn run(config: String) {
-    EngineRunner::new(config)
+pub async fn run() {
+    use custom_engine_models::utils::get_string;
+
+    let config = get_string("./assets/config.toml")
+        .await
+        .expect("Config not found");
+
+    EngineRunner::new(&config)
         .expect("Init conifg error: ")
         .logger()
         .expect("Init logger error: ")

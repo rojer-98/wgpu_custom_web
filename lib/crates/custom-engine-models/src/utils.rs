@@ -10,6 +10,17 @@ pub async fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
     bin.ok()
 }
 
+pub async fn get_string<P: AsRef<str>>(file_name: P) -> Option<String> {
+    let bin = get_data(file_name).await?;
+    let s = String::from_utf8(bin);
+
+    if let Err(e) = s {
+        panic!("{e}");
+    }
+
+    s.ok()
+}
+
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> Result<reqwest::Url> {
     use anyhow::anyhow;
