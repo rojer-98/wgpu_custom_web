@@ -324,36 +324,7 @@ impl<'a> RenderTextureBuilder<'a> {
         self
     }
 }
-/*
-impl<'a> ToBuilder<'a> for RenderTexture {
-    type Builder = RenderTextureBuilder<'a>;
 
-    fn to_builder(self, device: &'a wgpu::Device) -> Self::Builder {
-        /*
-
-               let hdr_t = hdr_t_builder
-                   .label("HDR texture")
-                   .format(TextureKind::HDR)
-                   .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
-                   .texture_size(t_size)
-                   .sampler_desc(wgpu::SamplerDescriptor {
-                       address_mode_u: wgpu::AddressMode::ClampToEdge,
-                       address_mode_v: wgpu::AddressMode::ClampToEdge,
-                       address_mode_w: wgpu::AddressMode::ClampToEdge,
-                       mag_filter: wgpu::FilterMode::Nearest,
-                       min_filter: wgpu::FilterMode::Nearest,
-                       mipmap_filter: wgpu::FilterMode::Nearest,
-                       ..Default::default()
-                   })
-                   .bind_group_binding(0)
-                   .is_sampler(true)
-                   .build()?;
-        */
-
-        RenderTextureBuilder::new_indexed(device, self.id)
-    }
-}
-*/
 impl RenderTexture {
     pub fn sampler(&self) -> Result<&wgpu::Sampler, CoreError> {
         self.sampler

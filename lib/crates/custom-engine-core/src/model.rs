@@ -342,7 +342,17 @@ Proceed material: `{texture_name}:{i}`:
                     bind_group_layout,
                 })
             }
-            Gltf(_) => return Err(CoreError::NotInitView),
+            Gltf(_gltf_file) => {
+                //let scene = gltf_file.scene(0)?;
+                //scene.nodes.iter().for_each(|n_id| {
+                //let node = gltf_file.root.nodes.get(*n_id).unwrap();
+
+                //node.children
+                //let mesh = node.mesh.as_ref().unwrap();
+                //});
+
+                return Err(CoreError::NotInitView);
+            }
         }
     }
 }
