@@ -26,7 +26,7 @@ use wasm_bindgen::prelude::*;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
+#[wasm_bindgen(catch)]
 pub async fn run(config: String) {
     EngineRunner::new(config)
         .expect("Init conifg error: ")

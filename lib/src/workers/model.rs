@@ -42,6 +42,7 @@ pub struct SimpleModelRender {
 
     camera: Camera,
     light: Light,
+    size: (u32, u32),
 }
 
 impl RenderWorker for SimpleModelRender {
@@ -72,7 +73,6 @@ impl RenderWorker for SimpleModelRender {
             mtl_file_data,
         )
         .await?;
-        info!("New data: {obj_file:?}");
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
@@ -192,13 +192,13 @@ impl RenderWorker for SimpleModelRender {
             .source(sh_data)
             .build()?;
 
-        let t_size = w.size();
+        let size = w.size();
         let (hdr_t_id, hdr_t_builder) = w.create_render_texture_id();
         let hdr_t = hdr_t_builder
             .label("HDR texture")
             .format(format)
             .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT)
-            .texture_size(t_size)
+            .texture_size(size)
             .view_layout_entry(wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -283,6 +283,7 @@ impl RenderWorker for SimpleModelRender {
 
             light,
             camera,
+            size,
         })
     }
 
@@ -360,6 +361,7 @@ impl RenderWorker for SimpleModelRender {
             c_id,
             hdr_p_id,
             hdr_t_id,
+            size,
             ..
         } = self;
 
@@ -374,11 +376,10 @@ impl RenderWorker for SimpleModelRender {
         let hdr_bind_group = hdr_texture.bind_group()?;
         let hdr_t_view = hdr_texture.view();
 
-        let texture_size = w.size();
         let d_t = w
             .create_depth_texture()
             .label("Depth Texture")
-            .texture_size(texture_size)
+            .texture_size(*size)
             .build()?;
         let d_t_view = d_t.view;
 

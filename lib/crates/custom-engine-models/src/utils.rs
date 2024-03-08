@@ -13,6 +13,7 @@ pub async fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> Result<reqwest::Url> {
     use anyhow::anyhow;
+    use log::info;
     use reqwest::Url;
 
     let window = web_sys::window().ok_or(anyhow!("Web Sys windows not found"))?;
@@ -21,12 +22,10 @@ fn format_url(file_name: &str) -> Result<reqwest::Url> {
         .origin()
         .map_err(|_| anyhow!("Location origin not found"))?;
 
-    if !origin.ends_with("assets") {
-        origin = format!("{}/assets", origin);
-    }
-    let base = Url::parse(&format!("{}/", origin,)).map_err(|_| anyhow!("Url parse failed"))?;
+    let base =
+        Url::parse(&format!("{origin}/{file_name}")).map_err(|_| anyhow!("Url parse failed"))?;
 
-    Ok(base.join(file_name)?)
+    Ok(base)
 }
 
 async fn load_binary(file_name: &str) -> Result<Vec<u8>> {

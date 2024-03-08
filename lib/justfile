@@ -21,12 +21,13 @@ alias ck := check
 alias t := test
 
 out_dir_wasm := "../src/connectors/engine"
-out_dir_assets := "../src/assets/engine"
+out_dir_assets := "../public/assets/engine"
 
 # Build
 build-web:
   @echo '[JUST] Web build with `wasm-pack`: '
-  -mkdir {{out_dir_wasm}}
+  -rm -R {{out_dir_wasm}}
+  mkdir {{out_dir_wasm}}
   wasm-pack build --target web --release --out-dir {{out_dir_wasm}} --out-name index
   -cp -R ./assets/* {{out_dir_assets}}
 build-debug:

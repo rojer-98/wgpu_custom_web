@@ -11,7 +11,7 @@ edition = "2021"
 log = "0.4.20"
 
 # Files 
-tobj = "4.0.0"
+tobj = { version = "4.0", features = ["async"]}
 gltf = { version =  "1.4.0", features = [ 
   "extras", 
   "extensions", 
@@ -26,7 +26,7 @@ gltf = { version =  "1.4.0", features = [
   "KHR_materials_specular",
   "KHR_materials_emissive_strength",
 ] }
-image = { version = "0.24" }
+image = { version = "0.24", features = [ "hdr", "png", "jpeg" ] }
 
 # Math 
 cgmath = "0.17.0"
