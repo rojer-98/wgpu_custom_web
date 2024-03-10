@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Core 
+# Own
 custom-engine-core = { path = "../custom-engine-core" }
 custom-engine-derive = { path = "../custom-engine-derive" }
+custom-engine-models = { path = "../custom-engine-models" }
 
 # Errors
 anyhow = "1.0.79"

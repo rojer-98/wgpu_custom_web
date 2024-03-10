@@ -2,7 +2,7 @@ use std::{path::Path, rc::Rc};
 
 use cgmath::{Vector3, Vector4};
 
-use crate::gltf::{Document, GltfAlphaMode, GltfMaterial, GltfTexture, Root, Texture};
+use crate::gltf::{Document, Root, Texture};
 
 #[derive(Debug, Clone)]
 pub struct BaseColorTexture {
@@ -47,79 +47,98 @@ pub struct Material {
     pub emissive: Option<EmissiveTexture>,
 
     pub alpha_cutoff: f32,
-    pub alpha_mode: GltfAlphaMode,
+    pub alpha_mode: gltf::material::AlphaMode,
 
     pub double_sided: bool,
 }
 
 impl Material {
-    pub fn new(
-        gltf_material: &GltfMaterial<'_>,
+    pub async fn new(
+        gltf_material: &gltf::Material<'_>,
         root: &mut Root,
         document: &Document,
         base_path: &Path,
     ) -> Material {
         let pbr = gltf_material.pbr_metallic_roughness();
 
-        let base_color = pbr.base_color_texture().map(|color_info| BaseColorTexture {
-            texture: load_texture(
-                &color_info.texture(),
-                color_info.tex_coord(),
-                root,
-                document,
-                base_path,
-            ),
-            factor: pbr.base_color_factor().into(),
-        });
-        let mr = pbr.metallic_roughness_texture().map(|mr_info| MRTexture {
-            texture: load_texture(
-                &mr_info.texture(),
-                mr_info.tex_coord(),
-                root,
-                document,
-                base_path,
-            ),
-            roughness_factor: pbr.roughness_factor(),
-            metallic_factor: pbr.metallic_factor(),
-        });
-        let normal = gltf_material
-            .normal_texture()
-            .map(|normal_texture| NormalTexture {
+        let base_color = if let Some(color_info) = pbr.base_color_texture() {
+            Some(BaseColorTexture {
+                texture: load_texture(
+                    &color_info.texture(),
+                    color_info.tex_coord(),
+                    root,
+                    document,
+                    base_path,
+                )
+                .await,
+                factor: pbr.base_color_factor().into(),
+            })
+        } else {
+            None
+        };
+        let mr = if let Some(mr_info) = pbr.metallic_roughness_texture() {
+            Some(MRTexture {
+                texture: load_texture(
+                    &mr_info.texture(),
+                    mr_info.tex_coord(),
+                    root,
+                    document,
+                    base_path,
+                )
+                .await,
+                roughness_factor: pbr.roughness_factor(),
+                metallic_factor: pbr.metallic_factor(),
+            })
+        } else {
+            None
+        };
+        let normal = if let Some(normal_texture) = gltf_material.normal_texture() {
+            Some(NormalTexture {
                 texture: load_texture(
                     &normal_texture.texture(),
                     normal_texture.tex_coord(),
                     root,
                     document,
                     base_path,
-                ),
+                )
+                .await,
                 scale: normal_texture.scale(),
-            });
+            })
+        } else {
+            None
+        };
 
-        let occlusion = gltf_material
-            .occlusion_texture()
-            .map(|occ_texture| OcclusionTexture {
+        let occlusion = if let Some(occ_texture) = gltf_material.occlusion_texture() {
+            Some(OcclusionTexture {
                 texture: load_texture(
                     &occ_texture.texture(),
                     occ_texture.tex_coord(),
                     root,
                     document,
                     base_path,
-                ),
+                )
+                .await,
                 strength: occ_texture.strength(),
-            });
+            })
+        } else {
+            None
+        };
 
-        let emissive = gltf_material
-            .emissive_texture()
-            .map(|em_info| EmissiveTexture {
+        let emissive = if let Some(em_info) = gltf_material.emissive_texture() {
+            Some(EmissiveTexture {
                 texture: load_texture(
                     &em_info.texture(),
                     em_info.tex_coord(),
                     root,
                     document,
                     base_path,
-                ),
+                )
+                .await,
                 factor: gltf_material.emissive_factor().into(),
-            });
+            })
+        } else {
+            None
+        };
 
         Material {
             index: gltf_material.index(),
@@ -139,8 +158,8 @@ impl Material {
     }
 }
 
-fn load_texture(
-    g_texture: &GltfTexture<'_>,
+async fn load_texture(
+    g_texture: &gltf::Texture<'_>,
     tex_coord: u32,
     root: &mut Root,
     document: &Document,
@@ -154,7 +173,7 @@ fn load_texture(
         return Rc::clone(tex);
     }
 
-    let texture = match Texture::new(g_texture, tex_coord, document, base_path) {
+    let texture = match Texture::new(g_texture, tex_coord, document, base_path).await {
         Ok(t) => t,
         Err(e) => panic!("Load texture: {e}"),
     };

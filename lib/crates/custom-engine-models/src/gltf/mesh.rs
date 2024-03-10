@@ -2,7 +2,7 @@ use std::path::Path;
 
 use collision::{Aabb, Aabb3, Union};
 
-use crate::gltf::{Document, GltfMesh, Primitive, Root};
+use crate::gltf::{Document, Primitive, Root};
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -14,21 +14,23 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(
-        g_mesh: &GltfMesh<'_>,
+    pub async fn new(
+        g_mesh: &gltf::Mesh<'_>,
         root: &mut Root,
         document: &Document,
         base_path: &Path,
     ) -> Mesh {
-        let primitives: Vec<Primitive> = g_mesh
-            .primitives()
-            .map(
-                |g_prim| match Primitive::new(&g_prim, root, g_mesh, document, base_path) {
-                    Ok(m) => m,
+        let primitives: Vec<Primitive> = {
+            let mut primitives = vec![];
+            for p in g_mesh.primitives() {
+                match Primitive::new(&p, root, g_mesh, document, base_path).await {
+                    Ok(m) => primitives.push(m),
                     Err(e) => panic!("Mesh new: {e}"),
-                },
-            )
-            .collect();
+                }
+            }
+
+            primitives
+        };
 
         let bounds = primitives
             .iter()

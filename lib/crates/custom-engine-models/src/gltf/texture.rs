@@ -1,12 +1,9 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    path::Path,
-};
+use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::prelude::*;
-use gltf::{image::Source, texture::Texture as GltfTexture};
+
+use custom_engine_utils::get_data;
 
 use crate::gltf::document::Document;
 
@@ -20,12 +17,14 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(
-        g_texture: &GltfTexture<'_>,
+    pub async fn new(
+        g_texture: &gltf::Texture<'_>,
         tex_coord: u32,
         document: &Document,
         base_path: &Path,
     ) -> Result<Texture> {
+        use gltf::image::Source;
+
         let buffers = &document.buffers;
 
         let g_img = g_texture.source();
@@ -45,16 +44,16 @@ impl Texture {
 
                     data
                 } else {
-                    let path = base_path
-                        .parent()
-                        .unwrap_or_else(|| Path::new("./"))
-                        .join(uri);
-                    let file = File::open(path).unwrap();
-                    let mut reader = BufReader::new(file);
-                    let mut data = vec![];
-                    reader.read_to_end(&mut data)?;
-
-                    data
+                    get_data(
+                        base_path
+                            .parent()
+                            .unwrap_or_else(|| Path::new("./"))
+                            .join(uri)
+                            .to_str()
+                            .ok_or(anyhow!("Base path is wrong"))?,
+                    )
+                    .await
+                    .ok_or(anyhow!("Source URI `{uri}` data is not found"))?
                 }
             }
         };

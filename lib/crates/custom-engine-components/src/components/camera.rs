@@ -5,6 +5,8 @@ use winit::{
     keyboard::{Key, NamedKey},
 };
 
+use custom_engine_models::gltf::Camera as GltfCamera;
+
 use crate::traits::Component;
 
 #[repr(C)]
@@ -18,6 +20,29 @@ pub struct CameraRaw {
 pub struct Camera {
     data: CameraData,
     controller: CameraController,
+}
+
+impl From<&GltfCamera> for Camera {
+    fn from(value: &GltfCamera) -> Self {
+        let data = match value {
+            GltfCamera::Perspective(p) => CameraData {
+                fovy: p.fovy.0,
+                zfar: p.zfar.unwrap_or(100.),
+                znear: p.znear,
+                aspect: p.aspect_ratio,
+
+                ..Default::default()
+            },
+            GltfCamera::Orthographic(_) => CameraData {
+                ..Default::default()
+            },
+        };
+
+        Self {
+            data,
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for Camera {
@@ -73,7 +98,7 @@ impl Default for CameraData {
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: 1.,
-            fovy: 45.0,
+            fovy: 10.0,
             znear: 0.1,
             zfar: 100.0,
         }
@@ -134,7 +159,7 @@ struct CameraController {
 impl Default for CameraController {
     fn default() -> Self {
         Self {
-            speed: 5.,
+            speed: 1.,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,

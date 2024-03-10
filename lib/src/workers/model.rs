@@ -50,7 +50,7 @@ impl RenderWorker for SimpleModelRender {
         Self: Sized,
     {
         let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let gltf_file = GltfFile::new("./assets/models/toycar/ToyCar.glb").await?;
+        let gltf_file = GltfFile::new("./assets/models/boom_box/BoomBox.gltf").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder

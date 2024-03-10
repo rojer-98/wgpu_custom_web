@@ -372,73 +372,60 @@ Proceed material: `{texture_name}:{i}`:
             Gltf((scene_id, mut gltf_file)) => {
                 let scene = gltf_file.scene(scene_id)?;
 
-                let mut f_m = vec![];
-                let mut f_ms = vec![];
+                let mut materials = vec![];
+                let mut meshes = vec![];
 
                 for n_id in scene.nodes.iter() {
                     if let Some(node) = gltf_file.root.nodes.get(*n_id) {
                         if let Some(mesh) = node.mesh.as_ref() {
-                            let materials = mesh
-                                .primitives
-                                .iter()
-                                .map(|p| p.material.clone())
-                                .enumerate()
-                                .collect::<Vec<_>>();
-                            let meshes = mesh.primitives.iter().enumerate().collect::<Vec<_>>();
-
-                            for (i, m) in materials {
-                                let mut mb =
-                                    MaterialBuilder::new(self.device).layout(&bind_group_layout);
-                                let texture_name = m.name.clone().unwrap();
-                                debug!(
-                                    "
+                            materials.extend(
+                                mesh.primitives
+                                    .iter()
+                                    .map(|p| p.material.clone())
+                                    .enumerate()
+                                    .filter_map(|(i, m)| {
+                                        let mut mb = MaterialBuilder::new(self.device)
+                                            .layout(&bind_group_layout);
+                                        let texture_name = m.name.clone().unwrap();
+                                        debug!(
+                                            "
 Proceed material: `{texture_name}:{i}`:
             "
-                                );
+                                        );
 
-                                if let Some(base_color) = m.base_color.as_ref() {
-                                    let diffuse_texture_data = &base_color.texture.dyn_image;
-                                    let diffuse = MaterialTextureParams {
-                                        format: diffuse.format,
-                                        texture_data: Some(&diffuse_texture_data),
-                                        view_binding: diffuse.view_binding,
-                                        sampler_binding: diffuse.sampler_binding,
-                                    };
-                                    mb = mb.diffuse(diffuse);
+                                        if let Some(base_color) = m.base_color.as_ref() {
+                                            let diffuse_texture_data =
+                                                &base_color.texture.dyn_image;
+                                            let diffuse = MaterialTextureParams {
+                                                format: diffuse.format,
+                                                texture_data: Some(&diffuse_texture_data),
+                                                view_binding: diffuse.view_binding,
+                                                sampler_binding: diffuse.sampler_binding,
+                                            };
+                                            mb = mb.diffuse(diffuse);
 
-                                    if let Some(normal) = self.normal.as_ref() {
-                                        let normal_texture_data =
-                                            &m.normal.as_ref().unwrap().texture.dyn_image;
-                                        let normal = MaterialTextureParams {
-                                            format: normal.format,
-                                            texture_data: Some(normal_texture_data),
-                                            view_binding: normal.view_binding,
-                                            sampler_binding: normal.sampler_binding,
-                                        };
+                                            if let Some(normal) = self.normal.as_ref() {
+                                                let normal_texture_data =
+                                                    &m.normal.as_ref().unwrap().texture.dyn_image;
+                                                let normal = MaterialTextureParams {
+                                                    format: normal.format,
+                                                    texture_data: Some(normal_texture_data),
+                                                    view_binding: normal.view_binding,
+                                                    sampler_binding: normal.sampler_binding,
+                                                };
 
-                                        mb = mb.normal(normal);
-                                    }
-                                    /*
-                                          let emissive_texture_data =
-                                              m.emissive.as_ref().map(|d| d.texture.dyn_image.clone());
-                                          let mr_texture_data =
-                                              m.mr.as_ref().map(|d| d.texture.dyn_image.clone());
-                                          let occlusion_texture_data =
-                                              m.occlusion.as_ref().map(|d| d.texture.dyn_image.clone());
+                                                mb = mb.normal(normal);
+                                            }
+                                        }
 
-                                          let material = MaterialBuilder::new(self.device)
-                                              .diffuse(diffuse)
-                                              .normal(normal)
-                                              .layout(&bind_group_layout)
-                                              .build()
-                                              .unwrap();
-
-                                    */
-                                    f_m.push(mb.build()?);
-                                }
-                            }
-
-                            for (i, p) in meshes {
+                                        if let Ok(m) = mb.build() {
+                                            Some(m)
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                            );
+                            meshes.extend(mesh.primitives.iter().filter_map(|p| {
                                 if let Some(indices) = &p.indices {
                                     let verticies = p
                                         .vertices
@@ -452,7 +439,7 @@ Proceed material: `{texture_name}:{i}`:
                                         })
                                         .collect::<Vec<_>>();
 
-                                    let mesh = MeshBuilder::new(self.device)
+                                    if let Ok(m) = MeshBuilder::new(self.device)
                                         .name("Some")
                                         .num_elements(indices.len() as u32)
                                         .material(p.index)
@@ -460,19 +447,21 @@ Proceed material: `{texture_name}:{i}`:
                                         .index_buffer_data(&indices)
                                         .vertex_buffer_binding(mesh_vertex_binding)
                                         .build()
-                                        .unwrap();
-
-                                    f_ms.push(mesh);
+                                    {
+                                        return Some(m);
+                                    }
                                 }
-                            }
+
+                                None
+                            }));
                         }
                     }
                 }
 
                 Ok(Model {
                     id,
-                    meshes: f_ms,
-                    materials: f_m,
+                    meshes,
+                    materials,
                     bind_group_layout,
                 })
             }

@@ -5,7 +5,7 @@ use cgmath::{Vector2, Vector3, Vector4, Zero};
 use collision::Aabb3;
 use log::warn;
 
-use crate::gltf::{Document, GltfMesh, GltfMode, GltfPrimitive, Material, Root};
+use crate::gltf::{Document, Material, Root};
 
 #[derive(Debug, Clone)]
 pub struct PrimitiveVertex {
@@ -43,14 +43,14 @@ pub struct Primitive {
     pub vertices: Vec<PrimitiveVertex>,
     pub indices: Option<Vec<u32>>,
 
-    pub mode: GltfMode,
+    pub mode: gltf::mesh::Mode,
 }
 
 impl Primitive {
-    pub fn new<'a>(
-        gltf_primitive: &'a GltfPrimitive<'a>,
+    pub async fn new<'a>(
+        gltf_primitive: &'a gltf::Primitive<'a>,
         root: &'a mut Root,
-        mesh: &'a GltfMesh<'a>,
+        mesh: &'a gltf::Mesh<'a>,
         doc: &'a Document,
         base_path: &'a Path,
     ) -> Result<Self> {
@@ -152,7 +152,7 @@ impl Primitive {
 
         if material.is_none() {
             // no else due to borrow checker madness
-            let mat = Rc::new(Material::new(&g_material, root, doc, base_path));
+            let mat = Rc::new(Material::new(&g_material, root, doc, base_path).await);
             root.materials.push(Rc::clone(&mat));
             material = Some(mat);
         };

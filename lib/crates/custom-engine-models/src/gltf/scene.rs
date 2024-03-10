@@ -1,7 +1,7 @@
 use cgmath::{Matrix4, SquareMatrix};
 use collision::{Aabb, Aabb3, Union};
 
-use crate::gltf::{GltfScene, Root};
+use crate::gltf::Root;
 
 #[derive(Debug)]
 pub struct Scene {
@@ -21,7 +21,7 @@ impl Default for Scene {
 }
 
 impl Scene {
-    pub fn new(g_scene: &GltfScene<'_>, root: &mut Root) -> Scene {
+    pub fn new(g_scene: &gltf::Scene<'_>, root: &mut Root) -> Scene {
         let mut scene = Scene {
             name: g_scene.name().map(|s| s.to_owned()),
             nodes: g_scene.nodes().map(|g_node| g_node.index()).collect(),
