@@ -134,7 +134,7 @@ struct CameraController {
 impl Default for CameraController {
     fn default() -> Self {
         Self {
-            speed: 0.2,
+            speed: 5.,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,

@@ -1,5 +1,5 @@
 use derive_more::{Deref, DerefMut};
-use image::{load_from_memory, GenericImageView};
+use image::{guess_format, load_from_memory, GenericImageView};
 use log::{debug, info};
 
 use crate::{

@@ -38,6 +38,10 @@ impl Root {
         unsafe { &mut *(&mut self.nodes[index] as *mut Node) }
     }
 
+    pub fn unsafe_get_node(&self, index: usize) -> &'static Node {
+        unsafe { &*(&self.nodes[index] as *const Node) }
+    }
+
     /// Note: index refers to the vec of camera node indices!
     pub fn get_camera_node(&self, index: usize) -> &Node {
         &self.nodes[self.camera_nodes[index]]

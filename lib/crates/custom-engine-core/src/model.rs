@@ -14,14 +14,45 @@ use crate::{
         material::{Material, MaterialBuilder, MaterialTextureParams},
         mesh::{Mesh, MeshBuilder},
     },
-    texture::TextureKind,
     traits::{Builder, VertexLayout},
 };
 
 #[derive(Debug)]
+pub struct TextureParams {
+    pub view_binding: u32,
+    pub sampler_binding: u32,
+    pub format: wgpu::TextureFormat,
+}
+
+impl TextureParams {
+    pub fn process<'a>(
+        &'a self,
+        bind_group_layout: BindGroupLayoutBuilder<'a>,
+    ) -> BindGroupLayoutBuilder<'_> {
+        bind_group_layout
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: self.view_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                },
+                count: None,
+            })
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: self.sampler_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            })
+    }
+}
+
+#[derive(Debug)]
 pub enum ModelFile {
     Obj(ObjFile),
-    Gltf(GltfFile),
+    Gltf((usize, GltfFile)),
 }
 
 impl From<ObjFile> for ModelFile {
@@ -32,7 +63,13 @@ impl From<ObjFile> for ModelFile {
 
 impl From<GltfFile> for ModelFile {
     fn from(value: GltfFile) -> Self {
-        Self::Gltf(value)
+        Self::Gltf((0, value))
+    }
+}
+
+impl From<(usize, GltfFile)> for ModelFile {
+    fn from(value: (usize, GltfFile)) -> Self {
+        Self::Gltf((value.0, value.1))
     }
 }
 
@@ -76,16 +113,13 @@ pub struct ModelBuilder<'a> {
     id: Option<usize>,
     file: Option<ModelFile>,
 
-    model_binding: u32,
     mesh_vertex_binding: Option<u32>,
 
-    diffuse_view_binding: Option<u32>,
-    diffuse_sampler_binding: Option<u32>,
-    diffuse_format: wgpu::TextureFormat,
-
-    normal_view_binding: Option<u32>,
-    normal_sampler_binding: Option<u32>,
-    normal_format: wgpu::TextureFormat,
+    diffuse: Option<TextureParams>,
+    normal: Option<TextureParams>,
+    mr: Option<TextureParams>,
+    emissive: Option<TextureParams>,
+    occlusion: Option<TextureParams>,
 
     device: &'a wgpu::Device,
 }
@@ -100,14 +134,15 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
         Self {
             id: None,
             file: None,
-            normal_view_binding: None,
-            normal_sampler_binding: None,
-            diffuse_view_binding: None,
-            diffuse_sampler_binding: None,
+
             mesh_vertex_binding: None,
-            diffuse_format: TextureKind::Render.into(),
-            normal_format: TextureKind::NormalMap.into(),
-            model_binding: 0,
+
+            diffuse: None,
+            normal: None,
+            mr: None,
+            emissive: None,
+            occlusion: None,
+
             device,
         }
     }
@@ -119,14 +154,15 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
         Self {
             id: Some(id),
             file: None,
-            normal_view_binding: None,
-            normal_sampler_binding: None,
-            diffuse_view_binding: None,
-            diffuse_sampler_binding: None,
+
             mesh_vertex_binding: None,
-            diffuse_format: TextureKind::Render.into(),
-            normal_format: TextureKind::NormalMap.into(),
-            model_binding: 0,
+
+            diffuse: None,
+            normal: None,
+            mr: None,
+            emissive: None,
+            occlusion: None,
+
             device,
         }
     }
@@ -140,14 +176,9 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
         let id = self.id.unwrap_or_default();
         let model_name = format!("Model: {id}");
 
-        let diffuse_format = self.diffuse_format;
-        let diffuse_view_binding = self.diffuse_view_binding.unwrap_or(0);
-        let diffuse_sampler_binding = self.diffuse_sampler_binding.unwrap_or(1);
-
-        let normal_format = self.normal_format;
-        let normal_view_binding = self.normal_view_binding.unwrap_or(2);
-        let normal_sampler_binding = self.normal_sampler_binding.unwrap_or(3);
-
+        let diffuse = self
+            .diffuse
+            .ok_or(CoreError::EmptyDiffuseTexture(model_name.clone()))?;
         let mesh_vertex_binding = self.mesh_vertex_binding.unwrap_or_default();
 
         let file = self
@@ -155,41 +186,23 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
             .ok_or(CoreError::EmptyModelFile(model_name.to_string()))?;
 
         let bgl_name = format!("Bind Group Layout of `{model_name}`");
-        let bind_group_layout = BindGroupLayoutBuilder::new(self.device)
-            .label(&bgl_name)
-            .entries(wgpu::BindGroupLayoutEntry {
-                binding: diffuse_view_binding,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None,
-            })
-            .entries(wgpu::BindGroupLayoutEntry {
-                binding: diffuse_sampler_binding,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            })
-            .entries(wgpu::BindGroupLayoutEntry {
-                binding: normal_view_binding,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None,
-            })
-            .entries(wgpu::BindGroupLayoutEntry {
-                binding: normal_sampler_binding,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            })
-            .build()?;
+        let mut bind_group_layout =
+            diffuse.process(BindGroupLayoutBuilder::new(self.device).label(&bgl_name));
+
+        if let Some(tp) = self.normal.as_ref() {
+            bind_group_layout = tp.process(bind_group_layout)
+        }
+        if let Some(tp) = self.mr.as_ref() {
+            bind_group_layout = tp.process(bind_group_layout)
+        }
+        if let Some(tp) = self.emissive.as_ref() {
+            bind_group_layout = tp.process(bind_group_layout)
+        }
+        if let Some(tp) = self.occlusion.as_ref() {
+            bind_group_layout = tp.process(bind_group_layout)
+        }
+
+        let bind_group_layout = bind_group_layout.build()?;
 
         match file {
             Obj(obj_file) => {
@@ -197,6 +210,7 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
                     .materials
                     .iter()
                     .map(|(i, lm)| -> Result<Material, CoreError> {
+                        let mut mb = MaterialBuilder::new(self.device).layout(&bind_group_layout);
                         let texture_name = lm.material.name.to_string();
                         debug!(
                             "
@@ -212,27 +226,30 @@ Proceed material: `{texture_name}:{i}`:
                                     "Diffuse texture: {:?}",
                                     lm.material.diffuse_texture
                                 )))?;
-                        let normal_texture_data =
-                            lm.files.normal_texture.as_ref().map(|d| d.as_slice());
 
                         let diffuse = MaterialTextureParams {
-                            format: diffuse_format,
+                            format: diffuse.format,
                             texture_data: Some(diffuse_texture_data),
-                            view_binding: diffuse_view_binding,
-                            sampler_binding: diffuse_sampler_binding,
-                        };
-                        let normal = MaterialTextureParams {
-                            format: normal_format,
-                            texture_data: normal_texture_data,
-                            view_binding: normal_view_binding,
-                            sampler_binding: normal_sampler_binding,
+                            view_binding: diffuse.view_binding,
+                            sampler_binding: diffuse.sampler_binding,
                         };
 
-                        Ok(MaterialBuilder::new(self.device)
-                            .diffuse(diffuse)
-                            .normal(normal)
-                            .layout(&bind_group_layout)
-                            .build()?)
+                        mb = mb.diffuse(diffuse);
+
+                        if let Some(normal) = self.normal.as_ref() {
+                            let normal_texture_data =
+                                lm.files.normal_texture.as_ref().map(|d| d.as_slice());
+                            let normal = MaterialTextureParams {
+                                format: normal.format,
+                                texture_data: normal_texture_data,
+                                view_binding: normal.view_binding,
+                                sampler_binding: normal.sampler_binding,
+                            };
+
+                            mb = mb.normal(normal);
+                        }
+
+                        Ok(mb.build()?)
                     })
                     .filter_map(|m_res| {
                         if let Err(e) = m_res {
@@ -352,66 +369,79 @@ Proceed material: `{texture_name}:{i}`:
                     bind_group_layout,
                 })
             }
-            Gltf(mut gltf_file) => {
-                let scene = gltf_file.scene(0)?;
-                let n_id = scene.nodes.get(0).unwrap();
-                let node = gltf_file.root.nodes.get(*n_id).unwrap();
-
-                let mesh = node.mesh.as_ref().unwrap();
-                let materials = mesh
-                    .primitives
-                    .iter()
-                    .map(|p| p.material.clone())
-                    .enumerate()
-                    .collect::<Vec<_>>();
+            Gltf((scene_id, mut gltf_file)) => {
+                let scene = gltf_file.scene(scene_id)?;
 
                 let mut f_m = vec![];
-                for (i, m) in materials {
-                    let texture_name = m.name.clone().unwrap();
-                    debug!(
-                        "
+                let mut f_ms = vec![];
+
+                for n_id in scene.nodes.iter() {
+                    if let Some(node) = gltf_file.root.nodes.get(*n_id) {
+                        if let Some(mesh) = node.mesh.as_ref() {
+                            let materials = mesh
+                                .primitives
+                                .iter()
+                                .map(|p| p.material.clone())
+                                .enumerate()
+                                .collect::<Vec<_>>();
+                            let meshes = mesh.primitives.iter().enumerate().collect::<Vec<_>>();
+
+                            for (i, m) in materials {
+                                let mut mb =
+                                    MaterialBuilder::new(self.device).layout(&bind_group_layout);
+                                let texture_name = m.name.clone().unwrap();
+                                debug!(
+                                    "
 Proceed material: `{texture_name}:{i}`:
             "
-                    );
+                                );
 
-                    let diffuse_texture_data = m
-                        .base_color
-                        .clone()
-                        .ok_or(CoreError::EmptyData(format!(
-                            "Diffuse texture: {texture_name:?}",
-                        )))?
-                        .texture
-                        .dyn_image
-                        .to_rgba8()
-                        .to_vec();
-                    let normal_texture_data = m
-                        .normal
-                        .as_ref()
-                        .map(|d| d.texture.dyn_image.to_rgba8().to_vec());
+                                let base_color = m
+                                    .base_color
+                                    .clone()
+                                    .ok_or(CoreError::EmptyDiffuseTexture(texture_name))?;
+                                let diffuse_texture_data = &base_color.texture.dyn_image;
+                                let diffuse = MaterialTextureParams {
+                                    format: diffuse.format,
+                                    texture_data: Some(&diffuse_texture_data),
+                                    view_binding: diffuse.view_binding,
+                                    sampler_binding: diffuse.sampler_binding,
+                                };
+                                mb = mb.diffuse(diffuse);
 
-                    let diffuse = MaterialTextureParams {
-                        format: diffuse_format,
-                        texture_data: Some(&diffuse_texture_data),
-                        view_binding: diffuse_view_binding,
-                        sampler_binding: diffuse_sampler_binding,
-                    };
-                    let normal = MaterialTextureParams {
-                        format: normal_format,
-                        texture_data: normal_texture_data.as_deref(),
-                        view_binding: normal_view_binding,
-                        sampler_binding: normal_sampler_binding,
-                    };
+                                if let Some(normal) = self.normal.as_ref() {
+                                    let normal_texture_data =
+                                        &m.normal.as_ref().unwrap().texture.dyn_image;
+                                    let normal = MaterialTextureParams {
+                                        format: normal.format,
+                                        texture_data: Some(normal_texture_data),
+                                        view_binding: normal.view_binding,
+                                        sampler_binding: normal.sampler_binding,
+                                    };
 
-                    let material = MaterialBuilder::new(self.device)
-                        .diffuse(diffuse)
-                        .normal(normal)
-                        .layout(&bind_group_layout)
-                        .build()?;
+                                    mb = mb.normal(normal);
+                                }
+                                /*
+                                      let emissive_texture_data =
+                                          m.emissive.as_ref().map(|d| d.texture.dyn_image.clone());
+                                      let mr_texture_data =
+                                          m.mr.as_ref().map(|d| d.texture.dyn_image.clone());
+                                      let occlusion_texture_data =
+                                          m.occlusion.as_ref().map(|d| d.texture.dyn_image.clone());
 
-                    f_m.push(material);
-                }
-                /*
-                                mesh.primitives.iter().map(|p| {
+                                      let material = MaterialBuilder::new(self.device)
+                                          .diffuse(diffuse)
+                                          .normal(normal)
+                                          .layout(&bind_group_layout)
+                                          .build()
+                                          .unwrap();
+
+                                */
+                                f_m.push(mb.build()?);
+                            }
+
+                            for (i, p) in meshes {
+                                if let Some(indices) = &p.indices {
                                     let verticies = p
                                         .vertices
                                         .iter()
@@ -424,19 +454,29 @@ Proceed material: `{texture_name}:{i}`:
                                         })
                                         .collect::<Vec<_>>();
 
-                                    let indices = &p.indices;
-
                                     let mesh = MeshBuilder::new(self.device)
                                         .name("Some")
-                                        .num_elements(m.mesh.indices.len() as u32)
-                                        .material(m.mesh.material_id.unwrap_or_default())
-                                        .vertex_buffer_data(&vertices)
-                                        .index_buffer_data(&m.mesh.indices)
+                                        .num_elements(indices.len() as u32)
+                                        .material(p.index)
+                                        .vertex_buffer_data(&verticies)
+                                        .index_buffer_data(&indices)
                                         .vertex_buffer_binding(mesh_vertex_binding)
-                                        .build()?;
-                                });
-                */
-                return Err(CoreError::NotInitView);
+                                        .build()
+                                        .unwrap();
+
+                                    f_ms.push(mesh);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Ok(Model {
+                    id,
+                    meshes: f_ms,
+                    materials: f_m,
+                    bind_group_layout,
+                })
             }
         }
     }
@@ -448,43 +488,33 @@ impl<'a> ModelBuilder<'a> {
         self
     }
 
-    pub fn model_binding(mut self, model_binding: u32) -> Self {
-        self.model_binding = model_binding;
-        self
-    }
-
-    pub fn normal_sampler_binding(mut self, normal_sampler_binding: u32) -> Self {
-        self.normal_sampler_binding = Some(normal_sampler_binding);
-        self
-    }
-
-    pub fn normal_view_binding(mut self, normal_view_binding: u32) -> Self {
-        self.normal_view_binding = Some(normal_view_binding);
-        self
-    }
-
-    pub fn diffuse_sampler_binding(mut self, diffuse_sampler_binding: u32) -> Self {
-        self.diffuse_sampler_binding = Some(diffuse_sampler_binding);
-        self
-    }
-
-    pub fn diffuse_view_binding(mut self, diffuse_view_binding: u32) -> Self {
-        self.diffuse_view_binding = Some(diffuse_view_binding);
-        self
-    }
-
     pub fn mesh_vertex_binding(mut self, mesh_vertex_binding: u32) -> Self {
         self.mesh_vertex_binding = Some(mesh_vertex_binding);
         self
     }
 
-    pub fn diffuse_format<T: Into<wgpu::TextureFormat>>(mut self, diffuse_format: T) -> Self {
-        self.diffuse_format = diffuse_format.into();
+    pub fn mr_texture_params(mut self, tp: TextureParams) -> Self {
+        self.mr = Some(tp);
         self
     }
 
-    pub fn normal_format<T: Into<wgpu::TextureFormat>>(mut self, normal_format: T) -> Self {
-        self.normal_format = normal_format.into();
+    pub fn diffuse_texture_params(mut self, tp: TextureParams) -> Self {
+        self.diffuse = Some(tp);
+        self
+    }
+
+    pub fn normal_texture_params(mut self, tp: TextureParams) -> Self {
+        self.normal = Some(tp);
+        self
+    }
+
+    pub fn occlusion_texture_params(mut self, tp: TextureParams) -> Self {
+        self.occlusion = Some(tp);
+        self
+    }
+
+    pub fn emissive_texture_params(mut self, tp: TextureParams) -> Self {
+        self.emissive = Some(tp);
         self
     }
 }
