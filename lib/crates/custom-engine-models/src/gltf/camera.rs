@@ -1,8 +1,6 @@
 use cgmath::{Deg, Matrix4, Rad, Zero};
 use gltf::camera::Projection;
 
-use crate::gltf::GltfCamera;
-
 #[derive(Debug, Clone)]
 pub struct OrthographicCamera {
     pub index: usize,
@@ -36,7 +34,7 @@ pub enum Camera {
 }
 
 impl Camera {
-    pub fn new<'a>(gltf_camera: &'a GltfCamera<'a>) -> Self {
+    pub fn new<'a>(gltf_camera: &'a gltf::Camera<'a>) -> Self {
         Self::from(gltf_camera)
     }
 
@@ -112,7 +110,7 @@ impl Camera {
 }
 
 impl<'a> From<&'a gltf::Camera<'a>> for Camera {
-    fn from(gltf_camera: &gltf::Camera<'a>) -> Self {
+    fn from(gltf_camera: &'a gltf::Camera<'a>) -> Self {
         let index = gltf_camera.index();
         let name = gltf_camera.name().map(|n| n.to_owned());
         let projection_matrix = Matrix4::zero();

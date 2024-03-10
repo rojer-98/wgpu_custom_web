@@ -28,7 +28,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(catch)]
 pub async fn run() {
-    use custom_engine_models::utils::get_string;
+    use custom_engine_utils::get_string;
 
     let config = get_string("./assets/config.toml")
         .await

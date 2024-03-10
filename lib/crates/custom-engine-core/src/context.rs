@@ -13,8 +13,9 @@ use crate::{
     storage::Storages,
     texture::{DepthTexture, RenderTexture},
     uniform::Uniforms,
-    utils::Ref,
 };
+
+use custom_engine_utils::Ref;
 
 #[derive(Debug, Default)]
 pub struct Context {

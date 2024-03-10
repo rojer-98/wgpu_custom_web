@@ -14,12 +14,6 @@ where
     }
 }
 
-pub trait ToBuilder<'a> {
-    type Builder;
-
-    fn to_builder(self, device: &'a wgpu::Device) -> Self::Builder;
-}
-
 pub trait Builder<'a> {
     type Final;
 

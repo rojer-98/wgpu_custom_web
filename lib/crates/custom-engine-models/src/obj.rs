@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use log::{error, info};
 use tobj::{LoadOptions, Material, Model};
 
-use crate::utils::get_data;
+use custom_engine_utils::get_data;
 
 #[derive(Debug, Default)]
 pub struct FileTextures {

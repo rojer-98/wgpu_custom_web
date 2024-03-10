@@ -15,9 +15,10 @@ use crate::{
     texture::{DepthTexture, DepthTextureBuilder, RenderTexture, RenderTextureBuilder},
     traits::Builder,
     uniform::{Uniforms, UniformsBuilder},
-    utils::Ref,
     worker::Worker,
 };
+
+use custom_engine_utils::Ref;
 
 impl<'a> Worker<'a> {
     // Foreign functions

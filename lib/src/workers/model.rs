@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
@@ -7,7 +5,7 @@ use custom_engine_components::{
 use custom_engine_core::{
     errors::CoreError,
     instance::Instances,
-    model::Model,
+    model::{Model, TextureParams},
     render_pass::RenderStage,
     render_pass::{
         color_attachment::ColorAttachmentBuilder, depth_stencil::DepthStencilAttachmentBuilder,
@@ -52,17 +50,21 @@ impl RenderWorker for SimpleModelRender {
         Self: Sized,
     {
         let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let gltf_file = GltfFile::new("./assets/models/toycar/ToyCar.glb").await?;
+        let gltf_file = GltfFile::new("./assets/models/boom_box/BoomBox.gltf").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
-            .obj_file(obj_file)
-            .diffuse_view_binding(0)
-            .diffuse_sampler_binding(1)
-            .diffuse_format(TextureKind::HDR)
-            .normal_view_binding(2)
-            .normal_sampler_binding(3)
-            .normal_format(TextureKind::HDR)
+            .file((0, gltf_file.into()).into())
+            .diffuse_texture_params(TextureParams {
+                view_binding: 0,
+                sampler_binding: 1,
+                format: TextureKind::Render.into(),
+            })
+            .normal_texture_params(TextureParams {
+                view_binding: 2,
+                sampler_binding: 3,
+                format: TextureKind::Render.into(),
+            })
             .mesh_vertex_binding(0)
             .build()?;
         w.load_model(&m);
@@ -265,72 +267,6 @@ impl RenderWorker for SimpleModelRender {
             camera,
             size,
         })
-    }
-
-    async fn reinit(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        let SimpleModelRender {
-            pl_id, sh_id, p_id, ..
-        } = self;
-
-        let pipeline_layout = w.get_pipeline_layout_ref(*pl_id)?;
-
-        let format = w.format();
-        let sh_data = ShaderFiles::get_file_data(ShaderKind::Model).unwrap();
-        let shader = w
-            .create_shader()
-            .label("Simple shader")
-            .vs_entry_point("vs_main")
-            .vs_options(vec![
-                Model::get_buffer_layout(),
-                Instances::get_buffer_layout(),
-            ])
-            .fs_options(vec![wgpu::ColorTargetState {
-                format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }])
-            .fs_entry_point("fs_main")
-            .source(sh_data)
-            .build()?;
-
-        let pipeline = w
-            .create_pipeline()
-            .label("Some pipeline")
-            .layout(&pipeline_layout)
-            .shader(&shader)
-            .primitive(&wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            })
-            .depth_stencil(&wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            })
-            .multisample(&wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            })
-            .build()?;
-
-        w.replace_pipeline(*p_id, pipeline)?;
-        w.replace_shader(*sh_id, shader)?;
-
-        Ok(())
     }
 
     async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {

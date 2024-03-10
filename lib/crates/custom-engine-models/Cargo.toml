@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# Own 
+custom-engine-utils = { path = "../custom-engine-utils" }
 
 # Log 
 log = "0.4.20"
@@ -29,17 +31,16 @@ gltf = { version =  "1.4.0", features = [
 image = { version = "0.24", features = [ "hdr", "png", "jpeg" ] }
 
 # Math 
-cgmath = "0.17.0"
-collision = "0.20.1"
+cgmath = "0.18.0"
+collision = { git = "https://github.com/rojer-98/collision-rs.git" }
 
 # Error
 anyhow = "1.0.79"
-base64 = "0.22.0"
 
 # Helpers
+base64 = "0.22.0"
 derive_more = "0.99.17"
 cfg-if = "1"
-rand = "0.8.5"
 derivative = "2.2.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]  

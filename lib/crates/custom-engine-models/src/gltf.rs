@@ -21,14 +21,8 @@ pub use texture::*;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use gltf::{
-    buffer::Data as GltfBufferData, camera::Camera as GltfCamera, image::Data as GltfImageData,
-    material::AlphaMode as GltfAlphaMode, material::Material as GltfMaterial,
-    mesh::Mesh as GltfMesh, mesh::Mode as GltfMode, scene::Scene as GltfScene,
-    texture::Texture as GltfTexture, Document as GltfDocument, Primitive as GltfPrimitive,
-};
 
-use crate::utils::get_data;
+use custom_engine_utils::get_data;
 
 #[derive(Debug)]
 pub struct GltfFile {
@@ -61,7 +55,7 @@ impl GltfFile {
             .to_str()
             .unwrap()
             .to_string();
-        let root = Root::new(&doc, base_path);
+        let root = Root::new(&doc, base_path).await;
 
         Ok(Self { name, root, doc })
     }

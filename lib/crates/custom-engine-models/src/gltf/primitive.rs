@@ -5,10 +5,10 @@ use cgmath::{Vector2, Vector3, Vector4, Zero};
 use collision::Aabb3;
 use log::warn;
 
-use crate::gltf::{Document, GltfMesh, GltfMode, GltfPrimitive, Material, Root};
+use crate::gltf::{Document, Material, Root};
 
 #[derive(Debug, Clone)]
-pub struct Vertex {
+pub struct PrimitiveVertex {
     pub position: Vector3<f32>,
     pub normal: Vector3<f32>,
     pub tangent: Vector4<f32>,
@@ -19,9 +19,9 @@ pub struct Vertex {
     pub weights_0: Vector4<f32>,
 }
 
-impl Default for Vertex {
+impl Default for PrimitiveVertex {
     fn default() -> Self {
-        Vertex {
+        PrimitiveVertex {
             position: Vector3::zero(),
             normal: Vector3::zero(),
             tangent: Vector4::zero(),
@@ -40,17 +40,17 @@ pub struct Primitive {
     pub bounds: Aabb3<f32>,
 
     pub material: Rc<Material>,
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<PrimitiveVertex>,
     pub indices: Option<Vec<u32>>,
 
-    pub mode: GltfMode,
+    pub mode: gltf::mesh::Mode,
 }
 
 impl Primitive {
-    pub fn new<'a>(
-        gltf_primitive: &'a GltfPrimitive<'a>,
+    pub async fn new<'a>(
+        gltf_primitive: &'a gltf::Primitive<'a>,
         root: &'a mut Root,
-        mesh: &'a GltfMesh<'a>,
+        mesh: &'a gltf::Mesh<'a>,
         doc: &'a Document,
         base_path: &'a Path,
     ) -> Result<Self> {
@@ -71,11 +71,11 @@ impl Primitive {
             max: bounds.max.into(),
         };
 
-        let mut vertices: Vec<Vertex> = positions
+        let mut vertices: Vec<PrimitiveVertex> = positions
             .into_iter()
-            .map(|position| Vertex {
+            .map(|position| PrimitiveVertex {
                 position: Vector3::from(position),
-                ..Vertex::default()
+                ..Default::default()
             })
             .collect();
 
@@ -152,7 +152,7 @@ impl Primitive {
 
         if material.is_none() {
             // no else due to borrow checker madness
-            let mat = Rc::new(Material::new(&g_material, root, doc, base_path));
+            let mat = Rc::new(Material::new(&g_material, root, doc, base_path).await);
             root.materials.push(Rc::clone(&mat));
             material = Some(mat);
         };

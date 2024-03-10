@@ -13,7 +13,7 @@ pub struct Node {
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
     pub translation: Vector3<f32>,
-    pub camera: Option<Camera>,
+    pub camera: Option<Rc<Camera>>,
     pub name: Option<String>,
 
     pub final_transform: Matrix4<f32>,
@@ -21,7 +21,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(
+    pub async fn new(
         g_node: &gltf::Node<'_>,
         root: &mut Root,
         document: &Document,
@@ -40,7 +40,7 @@ impl Node {
             }
 
             if mesh.is_none() {
-                mesh = Some(Rc::new(Mesh::new(&g_mesh, root, document, base_path)));
+                mesh = Some(Rc::new(Mesh::new(&g_mesh, root, document, base_path).await));
 
                 root.meshes.push(mesh.clone().unwrap());
             }
@@ -54,7 +54,7 @@ impl Node {
             rotation,
             scale: scale.into(),
             translation: trans.into(),
-            camera: g_node.camera().as_ref().map(Camera::from),
+            camera: g_node.camera().as_ref().map(|c| Rc::new(Camera::new(c))),
             name: g_node.name().map(|s| s.into()),
 
             final_transform: Matrix4::identity(),

@@ -1,7 +1,8 @@
 use std::{path::Path, rc::Rc};
 
 use crate::gltf::{
-    document::Document, material::Material, mesh::Mesh, node::Node, texture::Texture,
+    camera::Camera, document::Document, material::Material, mesh::Mesh, node::Node,
+    texture::Texture,
 };
 
 #[derive(Default, Debug)]
@@ -10,23 +11,32 @@ pub struct Root {
     pub meshes: Vec<Rc<Mesh>>,
     pub textures: Vec<Rc<Texture>>,
     pub materials: Vec<Rc<Material>>,
-    pub camera_nodes: Vec<usize>,
+    pub camera_nodes: Vec<Rc<Camera>>,
 }
 
 impl Root {
-    pub fn new(document: &Document, base_path: &Path) -> Self {
+    pub async fn new(document: &Document, base_path: &Path) -> Self {
         let mut root = Root::default();
-        let nodes = document
-            .inner
-            .nodes()
-            .map(|g_node| Node::new(&g_node, &mut root, document, base_path))
-            .collect();
-        root.nodes = nodes;
+
+        root.nodes = {
+            let mut nodes = vec![];
+
+            for n in document.inner.nodes() {
+                nodes.push(Node::new(&n, &mut root, document, base_path).await);
+            }
+
+            nodes
+        };
         root.camera_nodes = root
             .nodes
             .iter()
-            .filter(|node| node.camera.is_some())
-            .map(|node| node.index)
+            .filter_map(|node| {
+                if let Some(c) = node.camera.as_ref() {
+                    Some(c.clone())
+                } else {
+                    None
+                }
+            })
             .collect();
         root
     }
@@ -38,8 +48,7 @@ impl Root {
         unsafe { &mut *(&mut self.nodes[index] as *mut Node) }
     }
 
-    /// Note: index refers to the vec of camera node indices!
-    pub fn get_camera_node(&self, index: usize) -> &Node {
-        &self.nodes[self.camera_nodes[index]]
+    pub fn unsafe_get_node(&self, index: usize) -> &'static Node {
+        unsafe { &*(&self.nodes[index] as *const Node) }
     }
 }
