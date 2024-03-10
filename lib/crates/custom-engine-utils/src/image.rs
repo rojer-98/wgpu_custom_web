@@ -24,7 +24,6 @@ pub async fn get_string<P: AsRef<str>>(file_name: P) -> Option<String> {
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> Result<reqwest::Url> {
     use anyhow::anyhow;
-    use log::info;
     use reqwest::Url;
 
     let window = web_sys::window().ok_or(anyhow!("Web Sys windows not found"))?;

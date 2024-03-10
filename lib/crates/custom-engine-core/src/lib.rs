@@ -13,5 +13,4 @@ pub mod storage;
 pub mod texture;
 pub mod traits;
 pub mod uniform;
-pub mod utils;
 pub mod worker;

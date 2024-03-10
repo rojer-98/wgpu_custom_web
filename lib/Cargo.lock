@@ -628,6 +628,7 @@ dependencies = [
  "cgmath",
  "custom-engine-derive",
  "custom-engine-models",
+ "custom-engine-utils",
  "derivative",
  "derive_more",
  "flume",
@@ -662,15 +663,28 @@ dependencies = [
  "cfg-if 1.0.0",
  "cgmath",
  "collision",
+ "custom-engine-utils",
  "derivative",
  "derive_more",
  "getrandom",
  "gltf",
  "image",
  "log",
- "rand",
  "reqwest",
  "tobj",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "custom-engine-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cfg-if 1.0.0",
+ "getrandom",
+ "log",
+ "reqwest",
  "wasm-bindgen",
  "web-sys",
 ]

@@ -12,6 +12,7 @@ default = []
 # Own
 custom-engine-models = { path = "../custom-engine-models" }
 custom-engine-derive = { path = "../custom-engine-derive" }
+custom-engine-utils = { path = "../custom-engine-utils" }
 
 # Files 
 image = { version = "0.24", default-features = false, features = [ "png", "jpeg" ] }

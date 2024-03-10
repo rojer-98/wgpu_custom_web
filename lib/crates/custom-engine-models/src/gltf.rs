@@ -28,7 +28,7 @@ use gltf::{
     texture::Texture as GltfTexture, Document as GltfDocument, Primitive as GltfPrimitive,
 };
 
-use crate::utils::get_data;
+use custom_engine_utils::get_data;
 
 #[derive(Debug)]
 pub struct GltfFile {
