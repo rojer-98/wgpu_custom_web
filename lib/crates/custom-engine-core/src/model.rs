@@ -396,48 +396,46 @@ Proceed material: `{texture_name}:{i}`:
             "
                                 );
 
-                                let base_color = m
-                                    .base_color
-                                    .clone()
-                                    .ok_or(CoreError::EmptyDiffuseTexture(texture_name))?;
-                                let diffuse_texture_data = &base_color.texture.dyn_image;
-                                let diffuse = MaterialTextureParams {
-                                    format: diffuse.format,
-                                    texture_data: Some(&diffuse_texture_data),
-                                    view_binding: diffuse.view_binding,
-                                    sampler_binding: diffuse.sampler_binding,
-                                };
-                                mb = mb.diffuse(diffuse);
-
-                                if let Some(normal) = self.normal.as_ref() {
-                                    let normal_texture_data =
-                                        &m.normal.as_ref().unwrap().texture.dyn_image;
-                                    let normal = MaterialTextureParams {
-                                        format: normal.format,
-                                        texture_data: Some(normal_texture_data),
-                                        view_binding: normal.view_binding,
-                                        sampler_binding: normal.sampler_binding,
+                                if let Some(base_color) = m.base_color.as_ref() {
+                                    let diffuse_texture_data = &base_color.texture.dyn_image;
+                                    let diffuse = MaterialTextureParams {
+                                        format: diffuse.format,
+                                        texture_data: Some(&diffuse_texture_data),
+                                        view_binding: diffuse.view_binding,
+                                        sampler_binding: diffuse.sampler_binding,
                                     };
+                                    mb = mb.diffuse(diffuse);
 
-                                    mb = mb.normal(normal);
+                                    if let Some(normal) = self.normal.as_ref() {
+                                        let normal_texture_data =
+                                            &m.normal.as_ref().unwrap().texture.dyn_image;
+                                        let normal = MaterialTextureParams {
+                                            format: normal.format,
+                                            texture_data: Some(normal_texture_data),
+                                            view_binding: normal.view_binding,
+                                            sampler_binding: normal.sampler_binding,
+                                        };
+
+                                        mb = mb.normal(normal);
+                                    }
+                                    /*
+                                          let emissive_texture_data =
+                                              m.emissive.as_ref().map(|d| d.texture.dyn_image.clone());
+                                          let mr_texture_data =
+                                              m.mr.as_ref().map(|d| d.texture.dyn_image.clone());
+                                          let occlusion_texture_data =
+                                              m.occlusion.as_ref().map(|d| d.texture.dyn_image.clone());
+
+                                          let material = MaterialBuilder::new(self.device)
+                                              .diffuse(diffuse)
+                                              .normal(normal)
+                                              .layout(&bind_group_layout)
+                                              .build()
+                                              .unwrap();
+
+                                    */
+                                    f_m.push(mb.build()?);
                                 }
-                                /*
-                                      let emissive_texture_data =
-                                          m.emissive.as_ref().map(|d| d.texture.dyn_image.clone());
-                                      let mr_texture_data =
-                                          m.mr.as_ref().map(|d| d.texture.dyn_image.clone());
-                                      let occlusion_texture_data =
-                                          m.occlusion.as_ref().map(|d| d.texture.dyn_image.clone());
-
-                                      let material = MaterialBuilder::new(self.device)
-                                          .diffuse(diffuse)
-                                          .normal(normal)
-                                          .layout(&bind_group_layout)
-                                          .build()
-                                          .unwrap();
-
-                                */
-                                f_m.push(mb.build()?);
                             }
 
                             for (i, p) in meshes {

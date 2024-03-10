@@ -55,14 +55,14 @@ impl RenderWorker for SimpleModelRender {
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
             .file((0, gltf_file.into()).into())
-            .normal_texture_params(TextureParams {
-                sampler_binding: 0,
-                view_binding: 1,
+            .diffuse_texture_params(TextureParams {
+                view_binding: 0,
+                sampler_binding: 1,
                 format: TextureKind::Render.into(),
             })
             .normal_texture_params(TextureParams {
-                sampler_binding: 2,
-                view_binding: 3,
+                view_binding: 2,
+                sampler_binding: 3,
                 format: TextureKind::Render.into(),
             })
             .mesh_vertex_binding(0)
