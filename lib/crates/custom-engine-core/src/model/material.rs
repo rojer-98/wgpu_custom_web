@@ -9,8 +9,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct MaterialTextureParams<'a> {
-    pub view_binding: Option<u32>,
-    pub sampler_binding: Option<u32>,
+    pub view_binding: u32,
+    pub sampler_binding: u32,
     pub texture_data: Option<&'a [u8]>,
     pub format: wgpu::TextureFormat,
 }
@@ -24,6 +24,9 @@ pub struct Material {
 
     diffuse_texture: RenderTexture,
     normal_texture: Option<RenderTexture>,
+    occlusion_texture: Option<RenderTexture>,
+    mr_texture: Option<RenderTexture>,
+    emissive_texture: Option<RenderTexture>,
 }
 
 impl Material {
@@ -31,6 +34,15 @@ impl Material {
         self.diffuse_texture.store_to_memory(queue);
         if let Some(n_t) = self.normal_texture.as_ref() {
             n_t.store_to_memory(queue);
+        }
+        if let Some(o_t) = self.occlusion_texture.as_ref() {
+            o_t.store_to_memory(queue)
+        }
+        if let Some(mr_t) = self.mr_texture.as_ref() {
+            mr_t.store_to_memory(queue)
+        }
+        if let Some(e_t) = self.emissive_texture.as_ref() {
+            e_t.store_to_memory(queue)
         }
     }
 
@@ -46,6 +58,9 @@ pub struct MaterialBuilder<'a> {
 
     diffuse: Option<MaterialTextureParams<'a>>,
     normal: Option<MaterialTextureParams<'a>>,
+    occlusion: Option<MaterialTextureParams<'a>>,
+    mr: Option<MaterialTextureParams<'a>>,
+    emissive: Option<MaterialTextureParams<'a>>,
 
     material_binding: u32,
 
@@ -64,6 +79,9 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             id: None,
             normal: None,
             diffuse: None,
+            mr: None,
+            emissive: None,
+            occlusion: None,
             layout: None,
             material_binding: 0,
             device,
@@ -79,6 +97,9 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             id: Some(id),
             normal: None,
             diffuse: None,
+            mr: None,
+            emissive: None,
+            occlusion: None,
             layout: None,
             material_binding: 0,
             device,
@@ -97,6 +118,7 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
 
         let diffuse = self
             .diffuse
+            .as_ref()
             .ok_or(CoreError::EmptyDiffuseTexture(name.to_string()))?;
 
         let diffuse_texture_data = diffuse
@@ -110,12 +132,8 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             .build()?;
         let diff_view = diffuse_texture.view();
         let diff_sampler = diffuse_texture.sampler()?;
-        let diffuse_view_binding = diffuse
-            .view_binding
-            .ok_or(CoreError::EmptyBinding(name.to_string()))?;
-        let diffuse_sampler_binding = diffuse
-            .sampler_binding
-            .ok_or(CoreError::EmptyBinding(name.to_string()))?;
+        let diffuse_view_binding = diffuse.view_binding;
+        let diffuse_sampler_binding = diffuse.sampler_binding;
 
         let name = name.to_string();
         let layout = self
@@ -130,42 +148,120 @@ impl<'a> Builder<'a> for MaterialBuilder<'a> {
             .entries_view(diffuse_view_binding, diff_view)
             .entries_sampler(diffuse_sampler_binding, diff_sampler);
 
-        let (bind_group, normal_texture) = if let Some(normal) = self.normal {
-            let normal_texture_data = normal
+        let mut normal_texture = None;
+        let bind_group = if let Some(mtp) = self.normal {
+            let texture_data = mtp
                 .texture_data
                 .ok_or(CoreError::EmptyNormalTexture(name.to_string()))?;
-            let normal_texture = RenderTextureBuilder::new(self.device)
-                .label(&format!("Normal texture: {name}"))
-                .bytes(&normal_texture_data)
-                .format(normal.format)
-                .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
-                .build()?;
-
-            let norm_view = normal_texture.view();
-            let norm_sampler = normal_texture.sampler()?;
-            let normal_view_binding = normal
-                .view_binding
-                .ok_or(CoreError::EmptyBinding(name.to_string()))?;
-            let normal_sampler_binding = normal
-                .sampler_binding
-                .ok_or(CoreError::EmptyBinding(name.to_string()))?;
-
-            (
-                bind_group
-                    .entries_view(normal_view_binding, norm_view)
-                    .entries_sampler(normal_sampler_binding, norm_sampler)
+            normal_texture = Some(
+                RenderTextureBuilder::new(&self.device)
+                    .label(&format!("Texture: {name}"))
+                    .bytes(&texture_data)
+                    .format(mtp.format)
+                    .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
                     .build()?,
-                Some(normal_texture),
-            )
+            );
+
+            let view = normal_texture.as_ref().unwrap().view();
+            let sampler = normal_texture.as_ref().unwrap().sampler()?;
+            let view_binding = mtp.view_binding;
+            let sampler_binding = mtp.sampler_binding;
+
+            bind_group
+                .entries_view(view_binding, view)
+                .entries_sampler(sampler_binding, sampler)
         } else {
-            (bind_group.build()?, None)
+            bind_group
         };
+
+        let mut occlusion_texture = None;
+        let bind_group = if let Some(mtp) = self.occlusion {
+            let texture_data = mtp
+                .texture_data
+                .ok_or(CoreError::EmptyNormalTexture(name.to_string()))?;
+            occlusion_texture = Some(
+                RenderTextureBuilder::new(&self.device)
+                    .label(&format!("Texture: {name}"))
+                    .bytes(&texture_data)
+                    .format(mtp.format)
+                    .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
+                    .build()?,
+            );
+
+            let view = occlusion_texture.as_ref().unwrap().view();
+            let sampler = occlusion_texture.as_ref().unwrap().sampler()?;
+            let view_binding = mtp.view_binding;
+            let sampler_binding = mtp.sampler_binding;
+
+            bind_group
+                .entries_view(view_binding, view)
+                .entries_sampler(sampler_binding, sampler)
+        } else {
+            bind_group
+        };
+
+        let mut emissive_texture = None;
+        let bind_group = if let Some(mtp) = self.emissive {
+            let texture_data = mtp
+                .texture_data
+                .ok_or(CoreError::EmptyNormalTexture(name.to_string()))?;
+            emissive_texture = Some(
+                RenderTextureBuilder::new(&self.device)
+                    .label(&format!("Texture: {name}"))
+                    .bytes(&texture_data)
+                    .format(mtp.format)
+                    .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
+                    .build()?,
+            );
+
+            let view = emissive_texture.as_ref().unwrap().view();
+            let sampler = emissive_texture.as_ref().unwrap().sampler()?;
+            let view_binding = mtp.view_binding;
+            let sampler_binding = mtp.sampler_binding;
+
+            bind_group
+                .entries_view(view_binding, view)
+                .entries_sampler(sampler_binding, sampler)
+        } else {
+            bind_group
+        };
+
+        let mut mr_texture = None;
+        let bind_group = if let Some(mtp) = self.mr {
+            let texture_data = mtp
+                .texture_data
+                .ok_or(CoreError::EmptyNormalTexture(name.to_string()))?;
+            mr_texture = Some(
+                RenderTextureBuilder::new(&self.device)
+                    .label(&format!("Texture: {name}"))
+                    .bytes(&texture_data)
+                    .format(mtp.format)
+                    .usage(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST)
+                    .build()?,
+            );
+
+            let view = mr_texture.as_ref().unwrap().view();
+            let sampler = mr_texture.as_ref().unwrap().sampler()?;
+            let view_binding = mtp.view_binding;
+            let sampler_binding = mtp.sampler_binding;
+
+            bind_group
+                .entries_view(view_binding, view)
+                .entries_sampler(sampler_binding, sampler)
+        } else {
+            bind_group
+        };
+
+        let bind_group = bind_group.build()?;
 
         debug!(
             "
 Build `{name}`:
     Normal texture: {normal_texture:#?},
     Diffuse texture: {diffuse_texture:#?},
+    Emissive texture: {diffuse_texture:#?},
+    MR texture: {diffuse_texture:#?},
+    Occlusion texture: {diffuse_texture:#?},
     Bind group: {bind_group:#?},
             "
         );
@@ -175,6 +271,9 @@ Build `{name}`:
             name,
             diffuse_texture,
             normal_texture,
+            occlusion_texture,
+            mr_texture,
+            emissive_texture,
             bind_group,
         })
     }
@@ -198,6 +297,21 @@ impl<'a> MaterialBuilder<'a> {
 
     pub fn normal(mut self, mtp: MaterialTextureParams<'a>) -> Self {
         self.normal = Some(mtp);
+        self
+    }
+
+    pub fn mr(mut self, mtp: MaterialTextureParams<'a>) -> Self {
+        self.mr = Some(mtp);
+        self
+    }
+
+    pub fn occlusion(mut self, mtp: MaterialTextureParams<'a>) -> Self {
+        self.occlusion = Some(mtp);
+        self
+    }
+
+    pub fn emissive(mut self, mtp: MaterialTextureParams<'a>) -> Self {
+        self.emissive = Some(mtp);
         self
     }
 

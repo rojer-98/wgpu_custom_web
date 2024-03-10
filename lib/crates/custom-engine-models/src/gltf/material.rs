@@ -4,32 +4,32 @@ use cgmath::{Vector3, Vector4};
 
 use crate::gltf::{Document, GltfAlphaMode, GltfMaterial, GltfTexture, Root, Texture};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BaseColorTexture {
     pub factor: Vector4<f32>,
     pub texture: Rc<Texture>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MRTexture {
     pub metallic_factor: f32,
     pub roughness_factor: f32,
     pub texture: Rc<Texture>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NormalTexture {
     pub scale: f32,
     pub texture: Rc<Texture>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OcclusionTexture {
     pub texture: Rc<Texture>,
     pub strength: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EmissiveTexture {
     pub factor: Vector3<f32>,
     pub texture: Rc<Texture>,

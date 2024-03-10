@@ -154,85 +154,95 @@ impl<'a> Builder<'a> for ModelBuilder<'a> {
             .file
             .ok_or(CoreError::EmptyModelFile(model_name.to_string()))?;
 
+        let bgl_name = format!("Bind Group Layout of `{model_name}`");
+        let bind_group_layout = BindGroupLayoutBuilder::new(self.device)
+            .label(&bgl_name)
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: diffuse_view_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                },
+                count: None,
+            })
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: diffuse_sampler_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            })
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: normal_view_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                },
+                count: None,
+            })
+            .entries(wgpu::BindGroupLayoutEntry {
+                binding: normal_sampler_binding,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            })
+            .build()?;
+
         match file {
             Obj(obj_file) => {
-                let bgl_name = format!("Bind Group Layout of `{model_name}`");
-                let bind_group_layout = BindGroupLayoutBuilder::new(self.device)
-                    .label(&bgl_name)
-                    .entries(wgpu::BindGroupLayoutEntry {
-                        binding: diffuse_view_binding,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    })
-                    .entries(wgpu::BindGroupLayoutEntry {
-                        binding: diffuse_sampler_binding,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    })
-                    .entries(wgpu::BindGroupLayoutEntry {
-                        binding: normal_view_binding,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    })
-                    .entries(wgpu::BindGroupLayoutEntry {
-                        binding: normal_sampler_binding,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    })
-                    .build()?;
-
-                let mut materials = Vec::new();
-                for (i, lm) in obj_file.materials {
-                    let texture_name = lm.material.name.to_string();
-                    debug!(
-                        "
+                let materials = obj_file
+                    .materials
+                    .iter()
+                    .map(|(i, lm)| -> Result<Material, CoreError> {
+                        let texture_name = lm.material.name.to_string();
+                        debug!(
+                            "
 Proceed material: `{texture_name}:{i}`:
             "
-                    );
+                        );
 
-                    let diffuse_texture_data =
-                        &lm.files
-                            .diffuse_texture
-                            .ok_or(CoreError::EmptyData(format!(
-                                "Diffuse texture: {:?}",
-                                lm.material.diffuse_texture
-                            )))?;
-                    let normal_texture_data =
-                        lm.files.normal_texture.as_ref().map(|d| d.as_slice());
+                        let diffuse_texture_data =
+                            &lm.files
+                                .diffuse_texture
+                                .clone()
+                                .ok_or(CoreError::EmptyData(format!(
+                                    "Diffuse texture: {:?}",
+                                    lm.material.diffuse_texture
+                                )))?;
+                        let normal_texture_data =
+                            lm.files.normal_texture.as_ref().map(|d| d.as_slice());
 
-                    let diffuse = MaterialTextureParams {
-                        format: diffuse_format,
-                        texture_data: Some(diffuse_texture_data),
-                        view_binding: Some(diffuse_view_binding),
-                        sampler_binding: Some(diffuse_sampler_binding),
-                    };
-                    let normal = MaterialTextureParams {
-                        format: normal_format,
-                        texture_data: normal_texture_data,
-                        view_binding: Some(normal_view_binding),
-                        sampler_binding: Some(normal_sampler_binding),
-                    };
+                        let diffuse = MaterialTextureParams {
+                            format: diffuse_format,
+                            texture_data: Some(diffuse_texture_data),
+                            view_binding: diffuse_view_binding,
+                            sampler_binding: diffuse_sampler_binding,
+                        };
+                        let normal = MaterialTextureParams {
+                            format: normal_format,
+                            texture_data: normal_texture_data,
+                            view_binding: normal_view_binding,
+                            sampler_binding: normal_sampler_binding,
+                        };
 
-                    let material = MaterialBuilder::new(self.device)
-                        .diffuse(diffuse)
-                        .normal(normal)
-                        .layout(&bind_group_layout)
-                        .build()?;
-
-                    materials.push(material)
-                }
+                        Ok(MaterialBuilder::new(self.device)
+                            .diffuse(diffuse)
+                            .normal(normal)
+                            .layout(&bind_group_layout)
+                            .build()?)
+                    })
+                    .filter_map(|m_res| {
+                        if let Err(e) = m_res {
+                            error!("{e}");
+                            None
+                        } else {
+                            m_res.ok()
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
                 let meshes = obj_file
                     .models
@@ -342,15 +352,90 @@ Proceed material: `{texture_name}:{i}`:
                     bind_group_layout,
                 })
             }
-            Gltf(_gltf_file) => {
-                //let scene = gltf_file.scene(0)?;
-                //scene.nodes.iter().for_each(|n_id| {
-                //let node = gltf_file.root.nodes.get(*n_id).unwrap();
+            Gltf(mut gltf_file) => {
+                let scene = gltf_file.scene(0)?;
+                let n_id = scene.nodes.get(0).unwrap();
+                let node = gltf_file.root.nodes.get(*n_id).unwrap();
 
-                //node.children
-                //let mesh = node.mesh.as_ref().unwrap();
-                //});
+                let mesh = node.mesh.as_ref().unwrap();
+                let materials = mesh
+                    .primitives
+                    .iter()
+                    .map(|p| p.material.clone())
+                    .enumerate()
+                    .collect::<Vec<_>>();
 
+                let mut f_m = vec![];
+                for (i, m) in materials {
+                    let texture_name = m.name.clone().unwrap();
+                    debug!(
+                        "
+Proceed material: `{texture_name}:{i}`:
+            "
+                    );
+
+                    let diffuse_texture_data = m
+                        .base_color
+                        .clone()
+                        .ok_or(CoreError::EmptyData(format!(
+                            "Diffuse texture: {texture_name:?}",
+                        )))?
+                        .texture
+                        .dyn_image
+                        .to_rgba8()
+                        .to_vec();
+                    let normal_texture_data = m
+                        .normal
+                        .as_ref()
+                        .map(|d| d.texture.dyn_image.to_rgba8().to_vec());
+
+                    let diffuse = MaterialTextureParams {
+                        format: diffuse_format,
+                        texture_data: Some(&diffuse_texture_data),
+                        view_binding: diffuse_view_binding,
+                        sampler_binding: diffuse_sampler_binding,
+                    };
+                    let normal = MaterialTextureParams {
+                        format: normal_format,
+                        texture_data: normal_texture_data.as_deref(),
+                        view_binding: normal_view_binding,
+                        sampler_binding: normal_sampler_binding,
+                    };
+
+                    let material = MaterialBuilder::new(self.device)
+                        .diffuse(diffuse)
+                        .normal(normal)
+                        .layout(&bind_group_layout)
+                        .build()?;
+
+                    f_m.push(material);
+                }
+                /*
+                                mesh.primitives.iter().map(|p| {
+                                    let verticies = p
+                                        .vertices
+                                        .iter()
+                                        .map(|v| ModelRaw {
+                                            normal: v.normal.into(),
+                                            tangent: v.tangent.clone().truncate().into(),
+                                            position: v.position.into(),
+                                            bitangent: Default::default(),
+                                            tex_coords: v.tex_coord_0.into(),
+                                        })
+                                        .collect::<Vec<_>>();
+
+                                    let indices = &p.indices;
+
+                                    let mesh = MeshBuilder::new(self.device)
+                                        .name("Some")
+                                        .num_elements(m.mesh.indices.len() as u32)
+                                        .material(m.mesh.material_id.unwrap_or_default())
+                                        .vertex_buffer_data(&vertices)
+                                        .index_buffer_data(&m.mesh.indices)
+                                        .vertex_buffer_binding(mesh_vertex_binding)
+                                        .build()?;
+                                });
+                */
                 return Err(CoreError::NotInitView);
             }
         }
