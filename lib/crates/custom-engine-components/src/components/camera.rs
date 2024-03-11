@@ -3,7 +3,7 @@ use std::{f32::consts::FRAC_PI_2, time::Duration};
 use cgmath::{InnerSpace, Matrix, Matrix4, Point3, Rad, SquareMatrix, Vector3};
 use winit::{
     dpi::PhysicalPosition,
-    event::{ElementState, MouseScrollDelta, WindowEvent},
+    event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
     keyboard::{Key, NamedKey},
 };
 
@@ -162,6 +162,7 @@ pub struct CameraController {
     speed: f32,
     sensitivity: f32,
 
+    old_mouse_position: (f64, f64),
     mouse_pressed: bool,
 }
 
@@ -179,6 +180,7 @@ impl CameraController {
             scroll: 0.,
             speed,
             sensitivity,
+            old_mouse_position: (0., 0.),
             mouse_pressed: false,
         }
     }
@@ -239,8 +241,8 @@ impl CameraController {
     }
 
     pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) -> bool {
-        self.rotate_horizontal = mouse_dx as f32;
-        self.rotate_vertical = mouse_dy as f32;
+        self.rotate_horizontal += mouse_dx as f32;
+        self.rotate_vertical += mouse_dy as f32;
 
         true
     }
@@ -248,7 +250,7 @@ impl CameraController {
     pub fn process_scroll(&mut self, delta: &MouseScrollDelta) -> bool {
         self.scroll = match delta {
             // I'm assuming a line is about 100 pixels
-            MouseScrollDelta::LineDelta(_, scroll) => -scroll * 0.5,
+            MouseScrollDelta::LineDelta(_, scroll) => -scroll * 3.5,
             MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => -*scroll as f32,
         };
 
@@ -264,6 +266,30 @@ impl CameraController {
                 self.process_keyboard(keycode, state)
             }
             WindowEvent::MouseWheel { delta, .. } => self.process_scroll(delta),
+            WindowEvent::MouseInput {
+                state,
+                button: MouseButton::Left,
+                ..
+            } => {
+                self.mouse_pressed = state.is_pressed();
+                true
+            }
+            WindowEvent::CursorMoved {
+                position: PhysicalPosition { x, y },
+                ..
+            } => {
+                let (x, y) = (*x as f64, *y as f64);
+                let old_mouse_position = self.old_mouse_position.clone();
+
+                self.old_mouse_position = (x, y);
+                if self.mouse_pressed {
+                    let (dx, dy) = (x - old_mouse_position.0, y - old_mouse_position.1);
+
+                    self.process_mouse(dx / 100., dy / 100.)
+                } else {
+                    false
+                }
+            }
 
             _ => false,
         }

@@ -60,7 +60,7 @@ impl RenderWorker for SimpleModelRender {
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
-            .file((0, gltf_file.into()).into())
+            .file(obj_file.into())
             .diffuse_texture_params(TextureParams {
                 view_binding: 0,
                 sampler_binding: 1,
@@ -88,7 +88,7 @@ impl RenderWorker for SimpleModelRender {
 
         let size = w.size();
         let projection = Projection::new(size.0, size.1, Deg(45.), 0.1, 100.);
-        let controller = CameraController::new(0.1, 0.1);
+        let controller = CameraController::new(0.5, 0.1);
         let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
         let camera = Camera::new(projection, data, controller);
         let light = Light::default();
