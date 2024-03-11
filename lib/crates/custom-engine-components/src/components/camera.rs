@@ -1,208 +1,271 @@
-use cgmath::{perspective, Deg, InnerSpace, Matrix4, Point3, Vector3, Vector4};
-use derive_more::Constructor;
+use std::{f32::consts::FRAC_PI_2, time::Duration};
+
+use cgmath::{InnerSpace, Matrix, Matrix4, Point3, Rad, SquareMatrix, Vector3};
 use winit::{
-    event::WindowEvent,
+    dpi::PhysicalPosition,
+    event::{ElementState, MouseScrollDelta, WindowEvent},
     keyboard::{Key, NamedKey},
 };
 
-use custom_engine_models::gltf::Camera as GltfCamera;
+use crate::{components::projection::Projection, traits::Component};
 
-use crate::traits::Component;
+const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraRaw {
     view_position: [f32; 4],
+    view: [[f32; 4]; 4],
     view_proj: [[f32; 4]; 4],
+    inv_proj: [[f32; 4]; 4],
+    inv_view: [[f32; 4]; 4],
 }
 
-#[derive(Debug, Constructor)]
+#[derive(Debug)]
 pub struct Camera {
     data: CameraData,
     controller: CameraController,
+    projection: Projection,
 }
 
-impl From<&GltfCamera> for Camera {
-    fn from(value: &GltfCamera) -> Self {
-        let data = match value {
-            GltfCamera::Perspective(p) => CameraData {
-                fovy: p.fovy.0,
-                zfar: p.zfar.unwrap_or(100.),
-                znear: p.znear,
-                aspect: p.aspect_ratio,
-
-                ..Default::default()
-            },
-            GltfCamera::Orthographic(_) => CameraData {
-                ..Default::default()
-            },
-        };
-
+impl Camera {
+    pub fn new(projection: Projection, data: CameraData, controller: CameraController) -> Self {
         Self {
+            projection,
             data,
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            controller: Default::default(),
-            data: Default::default(),
+            controller,
         }
     }
 }
 
 impl Component<CameraRaw> for Camera {
     fn data(&self) -> CameraRaw {
-        const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0,
-        );
+        let proj = self.projection.matrix();
+        let view = self.data.matrix();
+        let view_proj = proj * view;
 
-        let view = self.data.view();
-        let proj = self.data.projection();
-
-        let view_proj: [[f32; 4]; 4] = (OPENGL_TO_WGPU_MATRIX * proj * view).into();
-        let view_position: [f32; 4] = self.data.position().into();
+        let view_position = self.data.position.to_homogeneous().into();
+        let inv_proj = proj.invert().unwrap().into();
+        let inv_view = view.transpose().into();
+        let view_proj = view_proj.into();
+        let view = view.into();
 
         CameraRaw {
             view_position,
+            inv_view,
+            inv_proj,
             view_proj,
+            view,
         }
     }
 
-    fn update(&mut self, event: &WindowEvent) {
+    fn update(&mut self, event: &WindowEvent, dt: Duration) {
         if self.controller.process_events(event) {
-            self.data.update(&self.controller);
-            self.controller.reset();
-        }
-    }
-}
-
-#[derive(Debug, Constructor)]
-struct CameraData {
-    pub eye: Point3<f32>,
-    pub target: Point3<f32>,
-    pub up: Vector3<f32>,
-    pub aspect: f32,
-    pub fovy: f32,
-    pub znear: f32,
-    pub zfar: f32,
-}
-
-impl Default for CameraData {
-    fn default() -> Self {
-        Self {
-            eye: (0.0, 5.0, -30.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: 1.,
-            fovy: 10.0,
-            znear: 0.1,
-            zfar: 100.0,
-        }
-    }
-}
-
-impl CameraData {
-    #[inline(always)]
-    fn projection(&self) -> Matrix4<f32> {
-        perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar)
-    }
-
-    #[inline(always)]
-    fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(self.eye, self.target, self.up)
-    }
-
-    #[inline(always)]
-    fn position(&self) -> Vector4<f32> {
-        self.eye.to_homogeneous()
-    }
-
-    fn update(&mut self, controller: &CameraController) {
-        let forward = self.target - self.eye;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
-
-        if controller.is_forward_pressed && forward_mag > controller.speed {
-            self.eye += forward_norm * controller.speed;
-        }
-        if controller.is_backward_pressed {
-            self.eye -= forward_norm * controller.speed;
-        }
-
-        let right = forward_norm.cross(self.up);
-        let forward = self.target - self.eye;
-        let forward_mag = forward.magnitude();
-
-        if controller.is_right_pressed {
-            self.eye = self.target - (forward + right * controller.speed).normalize() * forward_mag;
-        }
-        if controller.is_left_pressed {
-            self.eye = self.target - (forward - right * controller.speed).normalize() * forward_mag;
+            self.data.update(&mut self.controller, dt);
         }
     }
 }
 
 #[derive(Debug)]
-struct CameraController {
-    speed: f32,
-
-    is_forward_pressed: bool,
-    is_backward_pressed: bool,
-    is_left_pressed: bool,
-    is_right_pressed: bool,
+pub struct CameraData {
+    position: Point3<f32>,
+    yaw: Rad<f32>,
+    pitch: Rad<f32>,
 }
 
-impl Default for CameraController {
-    fn default() -> Self {
+impl CameraData {
+    pub fn new<V: Into<Point3<f32>>, Y: Into<Rad<f32>>, P: Into<Rad<f32>>>(
+        position: V,
+        yaw: Y,
+        pitch: P,
+    ) -> Self {
         Self {
-            speed: 1.,
-            is_forward_pressed: false,
-            is_backward_pressed: false,
-            is_left_pressed: false,
-            is_right_pressed: false,
+            position: position.into(),
+            yaw: yaw.into(),
+            pitch: pitch.into(),
+        }
+    }
+
+    #[inline]
+    pub fn matrix(&self) -> Matrix4<f32> {
+        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+
+        Matrix4::look_to_rh(
+            self.position,
+            Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
+            Vector3::unit_y(),
+        )
+    }
+
+    fn update(&mut self, controller: &mut CameraController, dt: Duration) {
+        let dt = dt.as_secs_f32();
+
+        // Move forward/backward and left/right
+        let (yaw_sin, yaw_cos) = self.yaw.0.sin_cos();
+        let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
+        let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
+        self.position += forward
+            * (controller.amount_forward - controller.amount_backward)
+            * controller.speed
+            * dt;
+        self.position +=
+            right * (controller.amount_right - controller.amount_left) * controller.speed * dt;
+
+        // Move in/out (aka. "zoom")
+        // Note: this isn't an actual zoom. The camera's position
+        // changes when zooming. I've added this to make it easier
+        // to get closer to an object you want to focus on.
+        let (pitch_sin, pitch_cos) = self.pitch.0.sin_cos();
+        let scrollward =
+            Vector3::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin).normalize();
+        self.position +=
+            scrollward * controller.scroll * controller.speed * controller.sensitivity * dt;
+        controller.scroll = 0.0;
+
+        // Move up/down. Since we don't use roll, we can just
+        // modify the y coordinate directly.
+        self.position.y += (controller.amount_up - controller.amount_down) * controller.speed * dt;
+
+        // Rotate
+        self.yaw += Rad(controller.rotate_horizontal) * controller.sensitivity * dt;
+        self.pitch += Rad(-controller.rotate_vertical) * controller.sensitivity * dt;
+
+        // If process_mouse isn't called every frame, these values
+        // will not get set to zero, and the camera will rotate
+        // when moving in a non cardinal direction.
+        controller.rotate_horizontal = 0.0;
+        controller.rotate_vertical = 0.0;
+
+        // Keep the camera's angle from going too high/low.
+        if self.pitch < -Rad(SAFE_FRAC_PI_2) {
+            self.pitch = -Rad(SAFE_FRAC_PI_2);
+        } else if self.pitch > Rad(SAFE_FRAC_PI_2) {
+            self.pitch = Rad(SAFE_FRAC_PI_2);
         }
     }
 }
 
-impl CameraController {
-    fn process_events(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput { event, .. } => {
-                let keycode = event.logical_key.clone();
-                let is_pressed = event.state.is_pressed();
+#[derive(Debug, Default)]
+pub struct CameraController {
+    amount_left: f32,
+    amount_right: f32,
+    amount_forward: f32,
+    amount_backward: f32,
+    amount_up: f32,
+    amount_down: f32,
 
-                match keycode {
-                    Key::Named(NamedKey::ArrowUp) => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowLeft) => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowDown) => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowRight) => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
-                }
+    rotate_horizontal: f32,
+    rotate_vertical: f32,
+
+    scroll: f32,
+    speed: f32,
+    sensitivity: f32,
+
+    mouse_pressed: bool,
+}
+
+impl CameraController {
+    pub fn new(speed: f32, sensitivity: f32) -> Self {
+        Self {
+            amount_left: 0.,
+            amount_right: 0.,
+            amount_forward: 0.,
+            amount_backward: 0.,
+            amount_up: 0.,
+            amount_down: 0.,
+            rotate_horizontal: 0.,
+            rotate_vertical: 0.,
+            scroll: 0.,
+            speed,
+            sensitivity,
+            mouse_pressed: false,
+        }
+    }
+
+    pub fn process_keyboard(&mut self, key: Key, state: ElementState) -> bool {
+        let amount = if state == ElementState::Pressed {
+            1.0
+        } else {
+            0.0
+        };
+        match key {
+            Key::Named(NamedKey::ArrowUp) => {
+                self.amount_forward = amount;
+                true
             }
+            Key::Named(NamedKey::ArrowDown) => {
+                self.amount_backward = amount;
+                true
+            }
+            Key::Named(NamedKey::ArrowLeft) => {
+                self.amount_left = amount;
+                true
+            }
+            Key::Named(NamedKey::ArrowRight) => {
+                self.amount_right = amount;
+                true
+            }
+            Key::Named(NamedKey::Space) => {
+                self.amount_up = amount;
+                true
+            }
+            Key::Named(NamedKey::Shift) => {
+                self.amount_down = amount;
+                true
+            }
+            Key::Character(s) => match s.as_str() {
+                "W" | "w" => {
+                    self.amount_forward = amount;
+                    true
+                }
+                "S" | "s" => {
+                    self.amount_backward = amount;
+                    true
+                }
+                "A" | "a" => {
+                    self.amount_left = amount;
+                    true
+                }
+                "D" | "d" => {
+                    self.amount_right = amount;
+                    true
+                }
+
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    fn reset(&mut self) {
-        *self = Self {
-            speed: self.speed,
-            ..Default::default()
+    pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) -> bool {
+        self.rotate_horizontal = mouse_dx as f32;
+        self.rotate_vertical = mouse_dy as f32;
+
+        true
+    }
+
+    pub fn process_scroll(&mut self, delta: &MouseScrollDelta) -> bool {
+        self.scroll = match delta {
+            // I'm assuming a line is about 100 pixels
+            MouseScrollDelta::LineDelta(_, scroll) => -scroll * 0.5,
+            MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => -*scroll as f32,
         };
+
+        true
+    }
+
+    fn process_events(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::KeyboardInput { event, .. } => {
+                let keycode = event.logical_key.clone();
+                let state = event.state;
+
+                self.process_keyboard(keycode, state)
+            }
+            WindowEvent::MouseWheel { delta, .. } => self.process_scroll(delta),
+
+            _ => false,
+        }
     }
 }

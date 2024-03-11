@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use cgmath::Vector3;
 use winit::{event::WindowEvent, keyboard::Key};
 
@@ -37,7 +39,7 @@ impl Component<LightRaw> for Light {
         }
     }
 
-    fn update(&mut self, event: &WindowEvent) {
+    fn update(&mut self, event: &WindowEvent, _: Duration) {
         if self.controller.process_events(event) {
             self.data.update(&self.controller);
             self.controller.reset();

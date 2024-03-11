@@ -1,5 +1,10 @@
+use cgmath::Deg;
 use custom_engine_components::{
-    components::{camera::Camera, light::Light},
+    components::{
+        camera::{Camera, CameraController, CameraData},
+        light::Light,
+        projection::Projection,
+    },
     traits::Component,
 };
 use custom_engine_core::{
@@ -18,6 +23,7 @@ use custom_engine_core::{
 use custom_engine_models::{gltf::GltfFile, obj::ObjFile};
 
 use anyhow::Result;
+use instant::Duration;
 use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
@@ -50,7 +56,7 @@ impl RenderWorker for SimpleModelRender {
         Self: Sized,
     {
         let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let gltf_file = GltfFile::new("./assets/models/boom_box/BoomBox.gltf").await?;
+        let gltf_file = GltfFile::new("./assets/models/avocado/Avocado.glb").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
@@ -80,7 +86,11 @@ impl RenderWorker for SimpleModelRender {
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
-        let camera = Camera::default();
+        let size = w.size();
+        let projection = Projection::new(size.0, size.1, Deg(45.), 0.1, 100.);
+        let controller = CameraController::new(0.1, 0.1);
+        let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
+        let camera = Camera::new(projection, data, controller);
         let light = Light::default();
 
         let (c_id, c_b_builder) = w.create_uniform_id();
@@ -363,9 +373,14 @@ impl RenderWorker for SimpleModelRender {
         Ok(())
     }
 
-    fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
-        self.camera.update(event);
-        self.light.update(event);
+    fn update(
+        &mut self,
+        w: &mut Worker<'_>,
+        event: &WindowEvent,
+        dt: Duration,
+    ) -> Result<(), CoreError> {
+        self.camera.update(event, dt);
+        self.light.update(event, dt);
 
         w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
         w.update_uniform(self.c_id, "Light", &[self.light.data()])?;

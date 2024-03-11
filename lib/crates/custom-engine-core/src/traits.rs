@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{errors::CoreError, worker::Worker};
 
 use winit::event::WindowEvent;
@@ -43,7 +45,12 @@ pub trait RenderWorker {
         Ok(())
     }
 
-    fn update(&mut self, _: &mut Worker<'_>, _: &WindowEvent) -> Result<(), CoreError> {
+    fn update(
+        &mut self,
+        _: &mut Worker<'_>,
+        _: &WindowEvent,
+        _: Duration,
+    ) -> Result<(), CoreError> {
         Ok(())
     }
     fn resize(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {

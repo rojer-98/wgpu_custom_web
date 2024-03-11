@@ -1,4 +1,5 @@
 use anyhow::Result;
+use instant::Duration;
 use log::error;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
@@ -109,7 +110,8 @@ impl EngineRunner {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                r.update(&mut worker_surface, event).unwrap();
+                r.update(&mut worker_surface, event, Duration::from_secs(1))
+                    .unwrap();
 
                 match event {
                     // Worker
