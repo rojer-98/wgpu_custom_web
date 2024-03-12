@@ -1,3 +1,6 @@
+use anyhow::Result;
+use cgmath::Vector3;
+
 use custom_engine_components::object::triangle::{Triangle, Triangles};
 use custom_engine_core::{
     errors::CoreError,
@@ -7,9 +10,6 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-
-use anyhow::Result;
-use cgmath::Vector3;
 
 use crate::{
     application::AppState,

@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
@@ -6,8 +8,6 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-
-use anyhow::Result;
 
 use crate::files::{ShaderFiles, ShaderKind};
 

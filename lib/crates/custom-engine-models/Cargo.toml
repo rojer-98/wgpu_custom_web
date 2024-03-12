@@ -28,7 +28,7 @@ gltf = { version =  "1.4.0", features = [
   "KHR_materials_specular",
   "KHR_materials_emissive_strength",
 ] }
-image = { version = "0.24", features = [ "hdr", "png", "jpeg" ] }
+image = { version = "0.25", features = [ "hdr", "png", "jpeg" ] }
 
 # Math 
 cgmath = "0.18.0"

@@ -1,18 +1,17 @@
 use std::{fs::read, path::Path};
 
-use custom_engine_components::{components::camera::Camera, traits::Component};
+use anyhow::Result;
+
+
+use custom_engine_components::{traits::Component};
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
     traits::{Builder, RenderWorker, VertexLayout},
-    uniform::UniformDescription,
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-
-use anyhow::Result;
-use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
 

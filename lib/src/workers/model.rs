@@ -1,4 +1,8 @@
+use anyhow::Result;
 use cgmath::Deg;
+use instant::Duration;
+use winit::event::WindowEvent;
+
 use custom_engine_components::{
     components::{
         camera::{Camera, CameraController, CameraData},
@@ -21,10 +25,6 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_models::{gltf::GltfFile, obj::ObjFile};
-
-use anyhow::Result;
-use instant::Duration;
-use winit::event::WindowEvent;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -56,7 +56,7 @@ impl RenderWorker for SimpleModelRender {
         Self: Sized,
     {
         let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let gltf_file = GltfFile::new("./assets/models/avocado/Avocado.glb").await?;
+        let _gltf_file = GltfFile::new("./assets/models/avocado/Avocado.glb").await?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder

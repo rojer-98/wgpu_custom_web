@@ -242,7 +242,7 @@ impl<'a> ComputeStage<'a> {
     }
 
     pub fn bind_groups(mut self, bind_groups: Vec<&'a BindGroup>) -> Self {
-        self.bind_groups = Some(bind_groups);
+        self.bind_groups.get_or_insert(vec![]).extend(bind_groups);
         self
     }
 
@@ -361,8 +361,13 @@ impl<'a> RenderStage<'a> {
         self
     }
 
+    pub fn bind_group(mut self, bind_group: &'a BindGroup) -> Self {
+        self.bind_groups.get_or_insert(vec![]).push(bind_group);
+        self
+    }
+
     pub fn bind_groups(mut self, bind_groups: Vec<&'a BindGroup>) -> Self {
-        self.bind_groups = Some(bind_groups);
+        self.bind_groups.get_or_insert(vec![]).extend(bind_groups);
         self
     }
 
