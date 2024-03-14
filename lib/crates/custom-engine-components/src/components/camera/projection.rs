@@ -2,10 +2,10 @@ use cgmath::{perspective, Matrix4, Rad};
 
 #[derive(Debug)]
 pub struct Projection {
-    aspect: f32,
-    fovy: Rad<f32>,
-    znear: f32,
-    zfar: f32,
+    pub aspect: f32,
+    pub fovy: Rad<f32>,
+    pub znear: f32,
+    pub zfar: f32,
 }
 
 impl Projection {

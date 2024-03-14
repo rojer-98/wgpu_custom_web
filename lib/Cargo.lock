@@ -718,6 +718,7 @@ dependencies = [
  "custom-engine-derive",
  "custom-engine-models",
  "derive_more",
+ "instant",
  "rust-embed",
  "thiserror",
  "wgpu",

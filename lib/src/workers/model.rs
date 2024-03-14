@@ -1,14 +1,9 @@
 use anyhow::Result;
-use cgmath::Deg;
 use instant::Duration;
 use winit::event::WindowEvent;
 
 use custom_engine_components::{
-    components::{
-        camera::{Camera, CameraController, CameraData},
-        light::Light,
-        projection::Projection,
-    },
+    components::{camera::Camera, light::Light},
     traits::Component,
 };
 use custom_engine_core::{
@@ -86,22 +81,12 @@ impl RenderWorker for SimpleModelRender {
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
-        let size = w.size();
-        let projection = Projection::new(size.0, size.1, Deg(45.), 0.1, 100.);
-        let controller = CameraController::new(0.5, 0.1);
-        let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
-        let camera = Camera::new(projection, data, controller);
         let light = Light::default();
+        let camera = Camera::init(w, 1)?;
 
         let (c_id, c_b_builder) = w.create_uniform_id();
         let c_b = c_b_builder
             .name("Uniform block")
-            .entries(UniformDescription::new(
-                "Camera",
-                0,
-                wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &[camera.data()],
-            ))
             .entries(UniformDescription::new(
                 "Light",
                 1,
@@ -379,10 +364,9 @@ impl RenderWorker for SimpleModelRender {
         event: &WindowEvent,
         dt: Duration,
     ) -> Result<(), CoreError> {
-        self.camera.update(event, dt);
+        self.camera.update(w, event, dt)?;
         self.light.update(event, dt);
 
-        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
         w.update_uniform(self.c_id, "Light", &[self.light.data()])?;
 
         Ok(())

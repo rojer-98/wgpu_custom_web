@@ -1,4 +1,3 @@
-pub mod camera;
 pub mod custom;
 pub mod model;
 pub mod render_texture;
