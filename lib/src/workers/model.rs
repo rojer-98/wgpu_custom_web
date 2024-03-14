@@ -82,14 +82,14 @@ impl RenderWorker for SimpleModelRender {
             .build()?;
 
         let light = Light::default();
-        let camera = Camera::init(w, 1)?;
+        let camera = Camera::init(w, 2)?;
 
         let (c_id, c_b_builder) = w.create_uniform_id();
         let c_b = c_b_builder
             .name("Uniform block")
             .entries(UniformDescription::new(
                 "Light",
-                1,
+                0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
                 &[light.data()],
             ))
@@ -122,7 +122,7 @@ impl RenderWorker for SimpleModelRender {
         let (pl_id, pipeline_layout_builder) = w.create_pipeline_layout_id();
         let pipeline_layout = pipeline_layout_builder
             .label("Some pipeline layout")
-            .entries(vec![bgl, c_b.get_layout()])
+            .entries(vec![bgl, c_b.get_layout(), camera.bind_group_layout()])
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder
@@ -273,6 +273,7 @@ impl RenderWorker for SimpleModelRender {
             hdr_p_id,
             hdr_t_id,
             size,
+            camera,
             ..
         } = self;
 
@@ -327,7 +328,7 @@ impl RenderWorker for SimpleModelRender {
                     .entities(0..1)
                     .instances(0..30)
                     .vertex_buffer(&vb)
-                    .bind_groups(vec![c.get_group()])
+                    .bind_groups(vec![c.get_group(), camera.bind_group()])
                     .model(&m),
             )
             .render_stage(

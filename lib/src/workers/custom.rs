@@ -182,7 +182,7 @@ impl RenderWorker for SimpleCustomRender {
         let out = w.read_storage_buffer::<Vertex>(s.id, "Storage").await?;
         log::info!("{out:#?}");
 
-        w.update_storage_buffer(
+        w.update_storage(
             s.id,
             "Storage",
             &out.into_iter()

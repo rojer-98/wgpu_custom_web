@@ -9,8 +9,10 @@ use crate::{
     model::Model,
     render_pass::RenderPass,
     runtime::RuntimeKind,
+    storage::Storages,
     texture::{CopyTextureParams, RenderTexture},
     traits::Builder,
+    uniform::Uniforms,
     worker::{View, Worker},
 };
 
@@ -104,6 +106,16 @@ impl<'a> Worker<'a> {
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let uniform = self.get_uniform_ref(id)?;
+
+        self.update_uniform_direct(&uniform, name, data)
+    }
+
+    pub fn update_uniform_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        uniform: &'_ Uniforms,
+        name: &str,
+        data: &'_ [T],
+    ) -> Result<(), CoreError> {
         let buffer = uniform
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
@@ -111,13 +123,23 @@ impl<'a> Worker<'a> {
         self.update_buffer_data(buffer, 0, data)
     }
 
-    pub fn update_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn update_storage<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
         name: &str,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let storage = self.get_storage_ref(id)?;
+
+        self.update_storage_direct(&storage, name, data)
+    }
+
+    pub fn update_storage_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        storage: &'_ Storages,
+        name: &str,
+        data: &'_ [T],
+    ) -> Result<(), CoreError> {
         let buffer = storage
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;

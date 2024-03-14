@@ -11,9 +11,9 @@ struct Light {
 };
 
 @group(1) @binding(0)
-var<uniform> camera: Camera;
-@group(1) @binding(1)
 var<uniform> light: Light;
+@group(2) @binding(0)
+var<uniform> camera: Camera;
 
 struct VertexInput {
   @location(0) position: vec3<f32>,

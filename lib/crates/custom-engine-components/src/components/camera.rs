@@ -8,7 +8,11 @@ use instant::Duration;
 use winit::event::WindowEvent;
 
 use custom_engine_core::{
-    errors::CoreError, traits::Builder, uniform::UniformDescription, worker::Worker,
+    bind_group::{layout::BindGroupLayout, BindGroup},
+    errors::CoreError,
+    traits::Builder,
+    uniform::{UniformDescription, Uniforms},
+    worker::Worker,
 };
 
 use crate::{
@@ -73,8 +77,8 @@ impl Component<CameraRaw> for CameraInner {
 
 #[derive(Debug)]
 pub struct Camera {
-    pub camera_id: usize,
-    camera: CameraInner,
+    inner: CameraInner,
+    uniform: Uniforms,
 }
 
 impl Camera {
@@ -85,26 +89,20 @@ impl Camera {
         let controller = CameraController::new(0.5, 0.1);
         let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
 
-        let camera = CameraInner::new(projection, data, controller);
-
-        let (c_id, c_b_builder) = w.create_uniform_id();
-        let c_b = c_b_builder
+        let inner = CameraInner::new(projection, data, controller);
+        let uniform = w
+            .create_uniform()
             .name("Uniform block")
             .entries(UniformDescription::new(
                 "Camera",
                 0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &[camera.data()],
+                &[inner.data()],
             ))
             .bind_group_binding(bind_group_binding)
             .build()?;
 
-        w.add_uniform(c_b);
-
-        Ok(Self {
-            camera,
-            camera_id: c_id,
-        })
+        Ok(Self { uniform, inner })
     }
 
     pub fn update(
@@ -113,10 +111,20 @@ impl Camera {
         event: &WindowEvent,
         dt: Duration,
     ) -> Result<(), CoreError> {
-        self.camera.update(event, dt);
+        self.inner.update(event, dt);
 
-        w.update_uniform(self.camera_id, "Camera", &[self.camera.data()])?;
+        w.update_uniform_direct(&self.uniform, "Camera", &[self.inner.data()])
+    }
 
-        Ok(())
+    pub fn bind_group(&self) -> &BindGroup {
+        self.uniform.get_group()
+    }
+
+    pub fn bind_group_layout(&self) -> &BindGroupLayout {
+        self.uniform.get_layout()
+    }
+
+    pub fn to_worker(self, w: &mut Worker<'_>) {
+        w.add_uniform(self.uniform)
     }
 }
