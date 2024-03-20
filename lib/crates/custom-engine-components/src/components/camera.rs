@@ -86,7 +86,7 @@ impl Camera {
         let size = w.size();
 
         let projection = Projection::new(size.0, size.1, Deg(45.), 0.1, 100.);
-        let controller = CameraController::new(0.5, 0.1);
+        let controller = CameraController::new(0.2, 0.2);
         let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
 
         let inner = CameraInner::new(projection, data, controller);

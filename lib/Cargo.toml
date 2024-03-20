@@ -11,9 +11,9 @@ default = []
 [profile.release]
 panic = "abort"
 codegen-units = 1
-lto = "fat"
 opt-level = "z"
-strip = "debuginfo"
+lto = true
+strip = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

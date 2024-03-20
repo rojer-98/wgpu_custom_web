@@ -81,9 +81,9 @@ impl RenderWorker for SimpleModelRender {
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
-        let light = Light::default();
         let camera = Camera::init(w, 2)?;
 
+        let light = Light::default();
         let (c_id, c_b_builder) = w.create_uniform_id();
         let c_b = c_b_builder
             .name("Uniform block")

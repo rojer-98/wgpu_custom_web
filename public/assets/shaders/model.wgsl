@@ -11,9 +11,9 @@ struct Light {
 };
 
 @group(1) @binding(0)
-var<uniform> camera: Camera;
-@group(1) @binding(1)
 var<uniform> light: Light;
+@group(2) @binding(0)
+var<uniform> camera: Camera;
 
 struct VertexInput {
   @location(0) position: vec3<f32>,
@@ -86,45 +86,45 @@ var s_normal: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
- // let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
- //let object_normal: vec4<f32> = textureSample(t_normal, s_normal, in.tex_coords);
-
- //// Adjust the tangent and bitangent using the Gramm-Schmidt process
- //// This makes sure that they are perpedicular to each other and the
- //// normal of the surface.
- //let world_tangent = normalize(in.world_tangent - dot(in.world_tangent, in.world_normal) * in.world_normal);
- //let world_bitangent = cross(world_tangent, in.world_normal);
-
- //// Convert the normal sample to world space
- //let TBN = mat3x3(
- //    world_tangent,
- //    world_bitangent,
- //    in.world_normal,
- //);
- //let tangent_normal = object_normal.xyz * 2.0 - 1.0;
- //let world_normal = TBN * tangent_normal;
-
- //// Create the lighting vectors
- //let light_dir = normalize(light.position - in.world_position);
- //let view_dir = normalize(in.world_view_position - in.world_position);
- //let half_dir = normalize(view_dir + light_dir);
-
- //let diffuse_strength = max(dot(world_normal, light_dir), 0.0);
- //let diffuse_color = light.color * diffuse_strength;
-
- //let specular_strength = pow(max(dot(world_normal, half_dir), 0.0), 32.0);
- //let specular_color = specular_strength * light.color;
-
- //let ambient_strength = 0.1;
- //let ambient_color = light.color * ambient_strength;
-
- //// NEW!
- //// Calculate reflections
- //let world_reflect = reflect(-view_dir, world_normal);
- //let reflection = textureSample(env_map, env_sampler, world_reflect).rgb;
- //let shininess = 0.1;
-
- //let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
+  let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+  let object_normal: vec4<f32> = textureSample(t_normal, s_normal, in.tex_coords);
+  
+  // Adjust the tangent and bitangent using the Gramm-Schmidt process
+  // This makes sure that they are perpedicular to each other and the
+  // normal of the surface.
+  let world_tangent = normalize(in.world_tangent - dot(in.world_tangent, in.world_normal) * in.world_normal);
+  let world_bitangent = cross(world_tangent, in.world_normal);
+  
+  // Convert the normal sample to world space
+  let TBN = mat3x3(
+      world_tangent,
+      world_bitangent,
+      in.world_normal,
+  );
+  let tangent_normal = object_normal.xyz * 2.0 - 1.0;
+  let world_normal = TBN * tangent_normal;
+  
+  // Create the lighting vectors
+  let light_dir = normalize(light.position - in.world_position);
+  let view_dir = normalize(in.world_view_position - in.world_position);
+  let half_dir = normalize(view_dir + light_dir);
+  
+  let diffuse_strength = max(dot(world_normal, light_dir), 0.0);
+  let diffuse_color = light.color * diffuse_strength;
+  
+  let specular_strength = pow(max(dot(world_normal, half_dir), 0.0), 32.0);
+  let specular_color = specular_strength * light.color;
+  
+  let ambient_strength = 0.1;
+  let ambient_color = light.color * ambient_strength;
+  
+  // NEW!
+  // Calculate reflections
+  //let world_reflect = reflect(-view_dir, world_normal);
+  //let reflection = textureSample(env_map, env_sampler, world_reflect).rgb;
+  //let shininess = 0.1;
+  
+  let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
  
-  return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+  return vec4<f32>(result, 0.0);
 }

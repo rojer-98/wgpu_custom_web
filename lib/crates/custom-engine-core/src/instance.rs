@@ -64,7 +64,6 @@ impl Instance {
 #[attributes("Instance")]
 #[attributes("5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4, 9 => Float32x3, 10 => Float32x3, 11 => Float32x3")]
 pub struct InstanceRaw {
-    #[allow(dead_code)]
     model: [[f32; 4]; 4],
     normal: [[f32; 3]; 3],
 }
