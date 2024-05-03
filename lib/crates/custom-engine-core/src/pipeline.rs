@@ -148,6 +148,9 @@ Build `{label}`:
                             .compute_entry_point
                             .as_ref()
                             .ok_or(CoreError::EmptyEntryPoint(label.to_string()))?,
+                        compilation_options: wgpu::PipelineCompilationOptions {
+                            ..Default::default()
+                        },
                     }),
             )
         } else {

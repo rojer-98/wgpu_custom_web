@@ -15,31 +15,31 @@ custom-engine-derive = { path = "../custom-engine-derive" }
 custom-engine-utils = { path = "../custom-engine-utils" }
 
 # Files 
-image = { version = "0.24", default-features = false, features = [ "png", "jpeg" ] }
-tobj = "4.0.1"
+image = { version = "0.25", default-features = false, features = [ "png", "jpeg" ] }
+tobj = "4.0.2"
 
 # Math 
 cgmath = "0.18.0"
 
 # Memory
-bytemuck = { version = "1.14.3", features = [ "derive" ] }
+bytemuck = { version = "1.15.0", features = [ "derive" ] }
 
 # Errors
-anyhow = "1.0.80"
-thiserror = "1.0.57"
+anyhow = "1.0.82"
+thiserror = "1.0.59"
 
 # Async
 flume = "0.11.0"
 
 # Window
-winit = { version =  "0.29", features = [ "rwh_05" ] }
-raw-window-handle = "0.6.0"
+winit = { version =  "0.30", features = [ "rwh_05" ] }
+raw-window-handle = "0.6.1"
 
 # Log
-log = "0.4.20"
+log = "0.4.21"
 
 # Net
-reqwest = "0.11.24"
+reqwest = "0.12.4"
 
 # Helpers
 derive_more = "0.99.17"
@@ -48,11 +48,11 @@ rand = "0.8.5"
 derivative = "2.2.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-wgpu = "0.19"
+wgpu = "0.20"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]  
-wgpu = { version = "0.19.1", features = [ "webgl", "wgsl" ], default-features = false }  
-web-sys = { version = "0.3.68", features = [ 
+wgpu = { version = "0.20.0", features = [ "webgl", "wgsl" ], default-features = false }  
+web-sys = { version = "0.3.69", features = [ 
   "Document",
   "Window",
   "Location",

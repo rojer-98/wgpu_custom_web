@@ -88,6 +88,9 @@ impl RenderShader {
             module: &self.inner_shader,
             entry_point: &self.vs_entry_point,
             buffers: &self.vs_options,
+            compilation_options: wgpu::PipelineCompilationOptions {
+                ..Default::default()
+            },
         }
     }
 
@@ -96,6 +99,9 @@ impl RenderShader {
             module: &self.inner_shader,
             entry_point: &self.fs_entry_point,
             targets: &self.fs_options,
+            compilation_options: wgpu::PipelineCompilationOptions {
+                ..Default::default()
+            },
         }
     }
 }

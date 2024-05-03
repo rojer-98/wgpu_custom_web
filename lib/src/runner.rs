@@ -15,9 +15,9 @@ use winit::event_loop::EventLoopProxy;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, KeyEvent, WindowEvent},
-    event_loop::{EventLoop, EventLoopBuilder},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopBuilder},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 use custom_engine_core::{errors::CoreError, runtime::Runtime, traits::RenderWorker};
@@ -185,10 +185,11 @@ impl EngineRunner {
     }
 
     fn env_init(&self) -> Result<(EventLoop<UserEvent>, Window)> {
-        let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build()?;
-        let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(self.config.width, self.config.height))
-            .build(&event_loop)?;
+        let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
+        let window = event_loop.create_window(
+            Window::default_attributes()
+                .with_inner_size(PhysicalSize::new(self.config.width, self.config.height)),
+        )?;
 
         cfg_if::cfg_if! {
           if #[cfg(target_arch = "wasm32")] {
