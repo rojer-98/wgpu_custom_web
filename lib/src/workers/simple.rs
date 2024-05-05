@@ -24,6 +24,7 @@ struct UData {
     pub size: [f32; 4],
 }
 
+#[derive(Debug, Default)]
 pub struct SimpleRender {
     shift: f32,
     counter: usize,
@@ -58,7 +59,16 @@ impl SimpleRender {
 }
 
 impl RenderWorker for SimpleRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -153,14 +163,16 @@ impl RenderWorker for SimpleRender {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self {
+        *self = Self {
             p_id,
             vb_id,
             c_id,
             data,
             shift,
             counter: 0,
-        })
+        };
+
+        Ok(())
     }
 
     fn resize(&mut self, w: &mut Worker<'_>) -> std::prelude::v1::Result<(), CoreError> {

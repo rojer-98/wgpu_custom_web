@@ -36,13 +36,23 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleRenderToTexture {
     vb_id: usize,
     p_id: usize,
 }
 
 impl RenderWorker for SimpleRenderToTexture {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -102,7 +112,9 @@ impl RenderWorker for SimpleRenderToTexture {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self { p_id, vb_id })
+        *self = Self { p_id, vb_id };
+
+        Ok(())
     }
 
     fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {

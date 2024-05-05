@@ -56,6 +56,7 @@ const VERTICES_POS: &[VertexPos] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleRenderTexture {
     vb_id: usize,
     p_id: usize,
@@ -63,7 +64,16 @@ pub struct SimpleRenderTexture {
 }
 
 impl RenderWorker for SimpleRenderTexture {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -164,7 +174,9 @@ impl RenderWorker for SimpleRenderTexture {
         w.add_shader(shader);
         w.add_render_texture(rt);
 
-        Ok(Self { rt_id, p_id, vb_id })
+        *self = Self { rt_id, p_id, vb_id };
+
+        Ok(())
     }
 
     fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {

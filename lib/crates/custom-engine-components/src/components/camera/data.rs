@@ -13,6 +13,20 @@ pub struct CameraData {
     pub pitch: Rad<f32>,
 }
 
+impl Default for CameraData {
+    fn default() -> Self {
+        Self {
+            position: Point3 {
+                x: 0.,
+                y: 0.,
+                z: 0.,
+            },
+            yaw: Rad(0.),
+            pitch: Rad(0.),
+        }
+    }
+}
+
 impl CameraData {
     pub fn new<V: Into<Point3<f32>>, Y: Into<Rad<f32>>, P: Into<Rad<f32>>>(
         position: V,

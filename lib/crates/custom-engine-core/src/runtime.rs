@@ -1,15 +1,14 @@
-use core::panic;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use derive_more::Display;
-use log::{debug, error, info};
+use log::{debug, error};
 use pollster::block_on;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
     event::WindowEvent,
     event_loop::ActiveEventLoop,
-    window::{self, Window, WindowId},
+    window::{Window, WindowId},
 };
 
 use crate::{
@@ -52,7 +51,7 @@ pub(crate) struct SurfaceProperties<'a> {
 pub struct Runtime<'a> {
     pub size: (u32, u32),
     //pub state: RuntimeState,
-    workers: HashMap<WindowId, Worker<'a>>,
+    worker: Option<Worker<'a>>,
     renders: Vec<Box<dyn RenderWorker + 'a>>,
 }
 
@@ -92,21 +91,19 @@ Event::WindowEvent {
 */
 
 impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: E) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: E) {
         event.on_event()
     }
 
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: WindowId,
+        _window_id: WindowId,
         event: WindowEvent,
     ) {
-        let worker = self.workers.get_mut(&window_id);
-
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
-                if let Some(w) = worker {
+                if let Some(w) = self.worker.as_mut() {
                     w.resize_by_size((width, height));
                     self.renders.iter_mut().for_each(|r| {
                         if let Err(e) = r.resize(w) {
@@ -117,7 +114,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             }
             WindowEvent::Focused(_focused) => {}
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(w) = worker {
+                if let Some(w) = self.worker.as_mut() {
                     w.resize_by_scale(scale_factor);
                     self.renders.iter_mut().for_each(|r| {
                         if let Err(e) = r.resize(w) {
@@ -128,7 +125,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             }
             WindowEvent::ThemeChanged(_theme) => {}
             WindowEvent::RedrawRequested => {
-                if let Some(w) = worker {
+                if let Some(w) = self.worker.as_mut() {
                     self.renders.iter_mut().for_each(|r| {
                         match r.update(w, &event, Duration::from_secs(1)).and(r.render(w)) {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
@@ -157,25 +154,20 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             WindowEvent::MouseInput { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
             WindowEvent::CursorMoved { .. } => {}
-            WindowEvent::ActivationTokenDone { token: _token, .. } => {
-                match event_loop.create_window(
-                    Window::default_attributes()
-                        .with_inner_size(PhysicalSize::new(self.size.0, self.size.1)),
-                ) {
-                    Ok(w) => {
-                        if let Err(e) = block_on(async { self.worker_surface(w).await }) {
-                            error!("{e}");
-                        }
-                    }
-                    Err(e) => {
-                        error!("{e}");
-                    }
-                }
+            WindowEvent::ActivationTokenDone { .. } => {
+                //   let w = event_loop
+                //      .create_window(
+                //          Window::default_attributes()
+                //      .unwrap();
+
+                //  if let Err(e) = block_on(async { self.worker_surface(w).await }) {
+                //      error!("{e}");
+                //  }
             }
-            WindowEvent::Ime(event) => {}
-            WindowEvent::PinchGesture { delta, .. } => {}
-            WindowEvent::RotationGesture { delta, .. } => {}
-            WindowEvent::PanGesture { delta, phase, .. } => {}
+            WindowEvent::Ime(_event) => {}
+            WindowEvent::PinchGesture { .. } => {}
+            WindowEvent::RotationGesture { .. } => {}
+            WindowEvent::PanGesture { .. } => {}
             WindowEvent::DoubleTapGesture { .. } => {}
             WindowEvent::TouchpadPressure { .. }
             | WindowEvent::HoveredFileCancelled
@@ -190,20 +182,44 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
         }
     }
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {}
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        // Panic if window is not init
+        let w = event_loop
+            .create_window(
+                Window::default_attributes()
+                    .with_inner_size(PhysicalSize::new(self.size.0, self.size.1)),
+            )
+            .unwrap();
+
+        if let Err(e) = block_on(async { self.worker_surface(w).await }) {
+            error!("{e}");
+            return;
+        }
+
+        self.renders.iter_mut().for_each(|r| {
+            if let Err(e) = r.init(self.worker.as_mut().unwrap()) {
+                error!("{e}");
+            }
+        });
+    }
 }
 
 impl<'a> Runtime<'a> {
     pub fn new(size: (u32, u32)) -> Self {
         Self {
             size,
-            workers: HashMap::default(),
+            worker: None,
             renders: Vec::default(),
         }
     }
 
+    pub fn add_render<RW: RenderWorker + 'a>(mut self) -> Self {
+        self.renders.push(Box::new(RW::new()));
+
+        self
+    }
+
     async fn worker_surface(&mut self, window: Window) -> Result<(), CoreError> {
-        let window_id = window.id();
         let power_preference = wgpu::PowerPreference::default();
         let limits = if cfg!(target_arch = "wasm32") {
             wgpu::Limits::downlevel_webgl2_defaults()
@@ -278,19 +294,16 @@ Adapter:
         };
         surface.configure(&device, &config);
 
-        self.workers.insert(
-            window_id,
-            Worker::new(
-                size,
-                1.,
-                RuntimeKind::Winit(SurfaceProperties { config, surface }),
-                device,
-                queue,
-                limits,
-                None,
-                Context::new(),
-            )?,
-        );
+        self.worker = Some(Worker::new(
+            size,
+            1.,
+            RuntimeKind::Winit(SurfaceProperties { config, surface }),
+            device,
+            queue,
+            limits,
+            None,
+            Context::new(),
+        )?);
 
         Ok(())
     }

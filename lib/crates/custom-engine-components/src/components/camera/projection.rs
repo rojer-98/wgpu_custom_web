@@ -8,6 +8,17 @@ pub struct Projection {
     pub zfar: f32,
 }
 
+impl Default for Projection {
+    fn default() -> Self {
+        Self {
+            aspect: 0.,
+            fovy: Rad(0.),
+            znear: 0.,
+            zfar: 0.,
+        }
+    }
+}
+
 impl Projection {
     pub fn new<F: Into<Rad<f32>>>(width: u32, height: u32, fovy: F, znear: f32, zfar: f32) -> Self {
         Self {

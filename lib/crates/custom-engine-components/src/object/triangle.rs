@@ -6,7 +6,7 @@ use custom_engine_core::traits::VertexLayout;
 
 use crate::{object::metadata::ControlFlags, primitives::Vertex, to_shader_coords};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Triangles {
     inner: Vec<Triangle>,
 }

@@ -45,6 +45,7 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleCustomRender {
     vb_id: usize,
     s_id: usize,
@@ -54,7 +55,16 @@ pub struct SimpleCustomRender {
 }
 
 impl RenderWorker for SimpleCustomRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -136,12 +146,14 @@ impl RenderWorker for SimpleCustomRender {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self {
+        *self = Self {
             p_id,
             vb_id,
             s_id,
             counter: 0.0,
-        })
+        };
+
+        Ok(())
     }
 
     fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {

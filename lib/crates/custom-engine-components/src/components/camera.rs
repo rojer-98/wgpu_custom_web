@@ -30,7 +30,7 @@ pub struct CameraRaw {
     inv_view: [[f32; 4]; 4],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CameraInner {
     data: CameraData,
     controller: CameraController,

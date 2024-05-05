@@ -27,6 +27,7 @@ use crate::files::{ShaderFiles, ShaderKind};
 const NUM_INSTANCES_PER_ROW: u32 = 10;
 const SPACE_BETWEEN: f32 = 3.0;
 
+#[derive(Debug, Default)]
 pub struct SimpleModelRender {
     sh_id: usize,
     pl_id: usize,
@@ -41,13 +42,22 @@ pub struct SimpleModelRender {
     hdr_sh_id: usize,
     hdr_pl_id: usize,
 
-    camera: Camera,
+    camera: Option<Camera>,
     light: Light,
     size: (u32, u32),
 }
 
 impl RenderWorker for SimpleModelRender {
-    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -247,7 +257,7 @@ impl RenderWorker for SimpleModelRender {
         w.add_pipeline_layout(hdr_pl);
         w.add_pipeline(hdr_p);
 
-        Ok(Self {
+        *self = Self {
             c_id,
             pl_id,
             p_id,
@@ -261,9 +271,11 @@ impl RenderWorker for SimpleModelRender {
             hdr_pl_id,
 
             light,
-            camera,
+            camera: Some(camera),
             size,
-        })
+        };
+
+        Ok(())
     }
 
     fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
@@ -279,6 +291,7 @@ impl RenderWorker for SimpleModelRender {
             ..
         } = self;
 
+        let camera = camera.as_ref().unwrap();
         let pipeline = w.get_pipeline_ref(*p_id)?;
         let m = w.get_model_ref(*m_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
@@ -367,7 +380,7 @@ impl RenderWorker for SimpleModelRender {
         event: &WindowEvent,
         dt: Duration,
     ) -> Result<(), CoreError> {
-        self.camera.update(w, event, dt)?;
+        self.camera.as_mut().unwrap().update(w, event, dt)?;
         self.light.update(event, dt);
 
         w.update_uniform(self.c_id, "Light", &[self.light.data()])?;

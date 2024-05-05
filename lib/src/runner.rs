@@ -96,9 +96,9 @@ impl EngineRunner {
     }
 
     pub async fn run(self) -> Result<()> {
-        let mut runtime = Runtime::new((1600, 1200));
-        let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
-        event_loop.run_app(&mut runtime)?;
+        EventLoop::<UserEvent>::with_user_event()
+            .build()?
+            .run_app(&mut Runtime::new((1600, 1200)).add_render::<SimpleModelRender>())?;
 
         Ok(())
     }
