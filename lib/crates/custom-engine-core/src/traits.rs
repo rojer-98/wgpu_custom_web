@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 
 use crate::{errors::CoreError, worker::Worker};
 
@@ -32,16 +32,16 @@ pub trait Builder<'a> {
 }
 
 pub trait RenderWorker {
-    async fn init(_: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(_: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized;
-    async fn reinit(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>
+    fn reinit(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
         Ok(())
     }
-    async fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
         Ok(())
     }
 
@@ -56,4 +56,8 @@ pub trait RenderWorker {
     fn resize(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
         Ok(())
     }
+}
+
+pub trait OnEvent {
+    fn on_event(&self);
 }

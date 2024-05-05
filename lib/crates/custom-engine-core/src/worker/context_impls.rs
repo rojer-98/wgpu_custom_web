@@ -25,11 +25,11 @@ impl<'a> Worker<'a> {
     // Storages
     pub fn create_storage_id(&self) -> (usize, StoragesBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, StoragesBuilder::new_indexed(self.device, id))
+        (id, StoragesBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_storage(&self) -> StoragesBuilder<'_> {
-        StoragesBuilder::new(self.device)
+        StoragesBuilder::new(&self.device)
     }
 
     pub fn add_storage(&mut self, u: Storages) {
@@ -59,11 +59,11 @@ impl<'a> Worker<'a> {
     // Uniforms
     pub fn create_uniform_id(&self) -> (usize, UniformsBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, UniformsBuilder::new_indexed(self.device, id))
+        (id, UniformsBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_uniform(&self) -> UniformsBuilder<'_> {
-        UniformsBuilder::new(self.device)
+        UniformsBuilder::new(&self.device)
     }
 
     pub fn add_uniform(&mut self, u: Uniforms) {
@@ -93,11 +93,11 @@ impl<'a> Worker<'a> {
     // Model
     pub fn create_model_id(&self) -> (usize, ModelBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, ModelBuilder::new_indexed(self.device, id))
+        (id, ModelBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_model(&self) -> ModelBuilder<'_> {
-        ModelBuilder::new(self.device)
+        ModelBuilder::new(&self.device)
     }
 
     pub fn add_model(&mut self, m: Model) {
@@ -127,11 +127,11 @@ impl<'a> Worker<'a> {
     // Buffer
     pub fn create_buffer_id(&self) -> (usize, BufferBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, BufferBuilder::new_indexed(self.device, id))
+        (id, BufferBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_buffer(&self) -> BufferBuilder<'_> {
-        BufferBuilder::new(self.device)
+        BufferBuilder::new(&self.device)
     }
 
     pub fn add_buffer(&mut self, b: Buffer) {
@@ -161,11 +161,11 @@ impl<'a> Worker<'a> {
     // Bind group
     pub fn create_bind_group_layout_id(&self) -> (usize, BindGroupLayoutBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, BindGroupLayoutBuilder::new_indexed(self.device, id))
+        (id, BindGroupLayoutBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_bind_group_layout(&self) -> BindGroupLayoutBuilder<'_> {
-        BindGroupLayoutBuilder::new(self.device)
+        BindGroupLayoutBuilder::new(&self.device)
     }
 
     pub fn get_bind_group_layout(&self, id: usize) -> Result<&BindGroupLayout, CoreError> {
@@ -201,11 +201,11 @@ impl<'a> Worker<'a> {
 
     pub fn create_bind_group_id(&self) -> (usize, BindGroupBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, BindGroupBuilder::new_indexed(self.device, id))
+        (id, BindGroupBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_bind_group(&self) -> BindGroupBuilder<'_> {
-        BindGroupBuilder::new(self.device)
+        BindGroupBuilder::new(&self.device)
     }
 
     pub fn get_bind_group(&self, id: usize) -> Result<&BindGroup, CoreError> {
@@ -235,11 +235,11 @@ impl<'a> Worker<'a> {
     // Pipeline
     pub fn create_pipeline_layout_id(&self) -> (usize, PipelineLayoutBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, PipelineLayoutBuilder::new_indexed(self.device, id))
+        (id, PipelineLayoutBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_pipeline_layout(&self) -> PipelineLayoutBuilder<'_> {
-        PipelineLayoutBuilder::new(self.device)
+        PipelineLayoutBuilder::new(&self.device)
     }
 
     pub fn get_pipeline_layout(&self, id: usize) -> Result<&PipelineLayout, CoreError> {
@@ -272,11 +272,11 @@ impl<'a> Worker<'a> {
 
     pub fn create_pipeline_id(&self) -> (usize, PipelineBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, PipelineBuilder::new_indexed(self.device, id))
+        (id, PipelineBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_pipeline(&self) -> PipelineBuilder<'_> {
-        PipelineBuilder::new(self.device)
+        PipelineBuilder::new(&self.device)
     }
 
     pub fn get_pipeline(&self, id: usize) -> Result<&Pipeline, CoreError> {
@@ -306,11 +306,11 @@ impl<'a> Worker<'a> {
     // Shader
     pub fn create_shader_id(&self) -> (usize, ShaderBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, ShaderBuilder::new_indexed(self.device, id))
+        (id, ShaderBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_shader(&self) -> ShaderBuilder<'_> {
-        ShaderBuilder::new(self.device)
+        ShaderBuilder::new(&self.device)
     }
 
     pub fn get_shader(&self, id: usize) -> Result<&Shader, CoreError> {
@@ -340,11 +340,11 @@ impl<'a> Worker<'a> {
     // Render texture
     pub fn create_render_texture_id(&self) -> (usize, RenderTextureBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, RenderTextureBuilder::new_indexed(self.device, id))
+        (id, RenderTextureBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_render_texture(&self) -> RenderTextureBuilder<'_> {
-        RenderTextureBuilder::new(self.device)
+        RenderTextureBuilder::new(&self.device)
     }
 
     pub fn get_render_texture(&self, id: usize) -> Result<&RenderTexture, CoreError> {
@@ -379,11 +379,11 @@ impl<'a> Worker<'a> {
     // Depth texture
     pub fn create_depth_texture_id(&self) -> (usize, DepthTextureBuilder<'_>) {
         let id = self.context.generate_unique_id();
-        (id, DepthTextureBuilder::new_indexed(self.device, id))
+        (id, DepthTextureBuilder::new_indexed(&self.device, id))
     }
 
     pub fn create_depth_texture(&self) -> DepthTextureBuilder<'_> {
-        DepthTextureBuilder::new(self.device)
+        DepthTextureBuilder::new(&self.device)
     }
 
     pub fn get_depth_texture(&self, id: usize) -> Result<&DepthTexture, CoreError> {

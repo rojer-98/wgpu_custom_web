@@ -2,8 +2,6 @@ use std::{fs::read, path::Path};
 
 use anyhow::Result;
 
-
-use custom_engine_components::{traits::Component};
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
@@ -12,6 +10,7 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -64,7 +63,7 @@ pub struct SimpleRenderTexture {
 }
 
 impl RenderWorker for SimpleRenderTexture {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -168,7 +167,7 @@ impl RenderWorker for SimpleRenderTexture {
         Ok(Self { rt_id, p_id, vb_id })
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderTexture {
             vb_id, p_id, rt_id, ..
         } = self;
@@ -204,7 +203,7 @@ impl RenderWorker for SimpleRenderTexture {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }

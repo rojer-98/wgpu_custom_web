@@ -9,6 +9,7 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -53,7 +54,7 @@ pub struct SimpleCustomRender {
 }
 
 impl RenderWorker for SimpleCustomRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -143,7 +144,7 @@ impl RenderWorker for SimpleCustomRender {
         })
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleCustomRender {
             vb_id, p_id, s_id, ..
         } = self;
@@ -177,10 +178,9 @@ impl RenderWorker for SimpleCustomRender {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
-        let out = w.read_storage_buffer::<Vertex>(s.id, "Storage").await?;
-        log::info!("{out:#?}");
+        let out = block_on(async { w.read_storage_buffer::<Vertex>(s.id, "Storage").await })?;
 
         w.update_storage(
             s.id,

@@ -8,6 +8,7 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -41,7 +42,7 @@ pub struct SimpleRenderToTexture {
 }
 
 impl RenderWorker for SimpleRenderToTexture {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -104,7 +105,7 @@ impl RenderWorker for SimpleRenderToTexture {
         Ok(Self { p_id, vb_id })
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderToTexture {
             ref vb_id,
             ref p_id,
@@ -138,7 +139,7 @@ impl RenderWorker for SimpleRenderToTexture {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }

@@ -10,6 +10,7 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
+use pollster::block_on;
 
 use crate::{
     application::AppState,
@@ -57,7 +58,7 @@ impl SimpleRender {
 }
 
 impl RenderWorker for SimpleRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
@@ -173,7 +174,7 @@ impl RenderWorker for SimpleRender {
         Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRender {
             vb_id, p_id, c_id, ..
         } = self;
@@ -207,7 +208,7 @@ impl RenderWorker for SimpleRender {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         if self.counter < 4 {
             self.counter += 1;

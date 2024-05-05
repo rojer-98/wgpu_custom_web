@@ -1,4 +1,3 @@
-#![allow(async_fn_in_trait)]
 pub mod bind_group;
 pub mod buffer;
 pub mod context;

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use instant::Duration;
+use pollster::block_on;
 use winit::event::WindowEvent;
 
 use custom_engine_components::{
@@ -46,12 +47,13 @@ pub struct SimpleModelRender {
 }
 
 impl RenderWorker for SimpleModelRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
     where
         Self: Sized,
     {
-        let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let _gltf_file = GltfFile::new("./assets/models/avocado/Avocado.glb").await?;
+        let obj_file = block_on(async { ObjFile::new("./assets/models/cube/cube.obj").await })?;
+        let _gltf_file =
+            block_on(async { GltfFile::new("./assets/models/avocado/Avocado.glb").await })?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
@@ -264,7 +266,7 @@ impl RenderWorker for SimpleModelRender {
         })
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleModelRender {
             m_id,
             p_id,
@@ -354,7 +356,7 @@ impl RenderWorker for SimpleModelRender {
             );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }
