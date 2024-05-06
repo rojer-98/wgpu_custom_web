@@ -197,7 +197,9 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
         }
 
         self.renders.iter_mut().for_each(|r| {
-            if let Err(e) = r.init(self.worker.as_mut().unwrap()) {
+            // Worker is presented always at this step
+            let worker = self.worker.as_mut().unwrap();
+            if let Err(e) = r.init(worker) {
                 error!("{e}");
             }
         });
