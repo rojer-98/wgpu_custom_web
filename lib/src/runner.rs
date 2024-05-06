@@ -1,6 +1,4 @@
 use anyhow::Result;
-use instant::Duration;
-use log::error;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
 #[cfg(not(target_arch = "wasm32"))]
@@ -9,21 +7,14 @@ use log4rs::{
     config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
 };
-use pollster::block_on;
+use winit::event_loop::EventLoop;
 #[cfg(target_arch = "wasm32")]
 use winit::event_loop::EventLoopProxy;
-use winit::{
-    dpi::PhysicalSize,
-    event::{Event, KeyEvent, WindowEvent},
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopBuilder},
-    keyboard::{Key, NamedKey},
-    window::Window,
-};
 
-use custom_engine_core::{errors::CoreError, runtime::Runtime, traits::RenderWorker};
+use custom_engine_core::runtime::Runtime;
 
 use crate::{
-    application::{foreign::UserEvent, AppState},
+    application::foreign::UserEvent,
     config::{EngineConfig, LoadConfig},
     workers::model::SimpleModelRender,
 };
@@ -101,40 +92,5 @@ impl EngineRunner {
             .run_app(&mut Runtime::new((1600, 1200)).add_render::<SimpleModelRender>())?;
 
         Ok(())
-    }
-
-    fn env_init(&self) -> Result<(EventLoop<UserEvent>, Window)> {
-        let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
-        let window = event_loop.create_window(
-            Window::default_attributes()
-                .with_inner_size(PhysicalSize::new(self.config.width, self.config.height)),
-        )?;
-
-        cfg_if::cfg_if! {
-          if #[cfg(target_arch = "wasm32")] {
-                use anyhow::anyhow;
-                use winit::platform::web::WindowExtWebSys;
-
-                web_sys::window()
-                    .and_then(|win| win.document())
-                    .and_then(|doc| {
-                        let dst = doc.get_element_by_id("wasm-body")?;
-                        let canvas = web_sys::Element::from(window.canvas()?);
-
-                        dst.append_child(&canvas).ok()?;
-
-                        Some(())
-                })
-                .ok_or(anyhow!("Web Sys window init"))?;
-
-                unsafe {
-                    EVENT_LOOP_PROXY = Some(event_loop.create_proxy());
-                }
-
-                Ok((event_loop, window))
-            } else {
-                Ok((event_loop, window))
-            }
-        }
     }
 }

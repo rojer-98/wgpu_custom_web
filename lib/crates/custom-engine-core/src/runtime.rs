@@ -27,16 +27,6 @@ pub enum ImageFormat {
 }
 
 #[derive(Debug)]
-pub enum IntoRuntime {
-    Window,
-    Texture {
-        path: String,
-        format: ImageFormat,
-        new_size: (u32, u32),
-    },
-}
-
-#[derive(Debug)]
 pub(crate) enum RuntimeKind<'a> {
     Winit(SurfaceProperties<'a>),
     Texture(String, ImageFormat),
@@ -49,9 +39,15 @@ pub(crate) struct SurfaceProperties<'a> {
 }
 
 pub struct Runtime<'a> {
-    pub size: (u32, u32),
+    pub(crate) size: (u32, u32),
+    pub(crate) limits: wgpu::Limits,
+    pub(crate) instance: wgpu::Instance,
+    pub(crate) power_preference: wgpu::PowerPreference,
+
     //pub state: RuntimeState,
-    worker: Option<Worker<'a>>,
+    worker_surface: Option<Worker<'a>>,
+    worker_textures: Vec<Worker<'a>>,
+
     renders: Vec<Box<dyn RenderWorker + 'a>>,
 }
 
@@ -103,7 +99,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
     ) {
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
-                if let Some(w) = self.worker.as_mut() {
+                if let Some(w) = self.worker_surface.as_mut() {
                     w.resize_by_size((width, height));
                     self.renders.iter_mut().for_each(|r| {
                         if let Err(e) = r.resize(w) {
@@ -114,7 +110,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             }
             WindowEvent::Focused(_focused) => {}
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(w) = self.worker.as_mut() {
+                if let Some(w) = self.worker_surface.as_mut() {
                     w.resize_by_scale(scale_factor);
                     self.renders.iter_mut().for_each(|r| {
                         if let Err(e) = r.resize(w) {
@@ -125,7 +121,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             }
             WindowEvent::ThemeChanged(_theme) => {}
             WindowEvent::RedrawRequested => {
-                if let Some(w) = self.worker.as_mut() {
+                if let Some(w) = self.worker_surface.as_mut() {
                     self.renders.iter_mut().for_each(|r| {
                         match r.update(w, &event, Duration::from_secs(1)).and(r.render(w)) {
                             Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
@@ -154,16 +150,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             WindowEvent::MouseInput { .. } => {}
             WindowEvent::CursorLeft { .. } => {}
             WindowEvent::CursorMoved { .. } => {}
-            WindowEvent::ActivationTokenDone { .. } => {
-                //   let w = event_loop
-                //      .create_window(
-                //          Window::default_attributes()
-                //      .unwrap();
-
-                //  if let Err(e) = block_on(async { self.worker_surface(w).await }) {
-                //      error!("{e}");
-                //  }
-            }
+            WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::Ime(_event) => {}
             WindowEvent::PinchGesture { .. } => {}
             WindowEvent::RotationGesture { .. } => {}
@@ -198,7 +185,7 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
 
         self.renders.iter_mut().for_each(|r| {
             // Worker is presented always at this step
-            let worker = self.worker.as_mut().unwrap();
+            let worker = self.worker_surface.as_mut().unwrap();
             if let Err(e) = r.init(worker) {
                 error!("{e}");
             }
@@ -208,9 +195,24 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
 
 impl<'a> Runtime<'a> {
     pub fn new(size: (u32, u32)) -> Self {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+        let power_preference = wgpu::PowerPreference::default();
+        let limits = if cfg!(target_arch = "wasm32") {
+            wgpu::Limits::downlevel_webgl2_defaults()
+        } else {
+            wgpu::Limits::default()
+        };
+
         Self {
+            instance,
+            power_preference,
+            limits,
             size,
-            worker: None,
+            worker_surface: None,
+            worker_textures: Vec::default(),
             renders: Vec::default(),
         }
     }
@@ -221,13 +223,81 @@ impl<'a> Runtime<'a> {
         self
     }
 
-    async fn worker_surface(&mut self, window: Window) -> Result<(), CoreError> {
-        let power_preference = wgpu::PowerPreference::default();
-        let limits = if cfg!(target_arch = "wasm32") {
-            wgpu::Limits::downlevel_webgl2_defaults()
+    pub async fn worker_texture(
+        mut self,
+        texture_path: String,
+        image_format: ImageFormat,
+    ) -> Result<Self, CoreError> {
+        let Self {
+            ref limits,
+            ref instance,
+            power_preference,
+            ref mut worker_textures,
+            ..
+        } = self;
+
+        let size = if cfg!(target_arch = "wasm32") {
+            (
+                limits.max_texture_dimension_2d,
+                limits.max_texture_dimension_2d,
+            )
         } else {
-            wgpu::Limits::default()
+            (self.size.0, self.size.1)
         };
+
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            })
+            .await
+            .ok_or(CoreError::RequestAdapter)?;
+        let adapter_info = adapter.get_info();
+        let adapter_features = adapter.features();
+
+        debug!(
+            "
+Adapter: 
+    Info: {adapter_info:#?},
+    Features: {adapter_features:#?},
+    Limits: {limits:#?}"
+        );
+
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: adapter_features,
+                    required_limits: limits.clone(),
+                    label: None,
+                },
+                None,
+            )
+            .await?;
+
+        worker_textures.push(Worker::new(
+            size,
+            1.,
+            RuntimeKind::Texture(texture_path, image_format),
+            device,
+            queue,
+            limits.clone(),
+            None,
+            Context::new(),
+        )?);
+
+        Ok(self)
+    }
+
+    // Create only in winit context
+    async fn worker_surface(&mut self, window: Window) -> Result<(), CoreError> {
+        let Self {
+            limits,
+            instance,
+            power_preference,
+            worker_surface,
+            ..
+        } = self;
 
         let size = if cfg!(target_arch = "wasm32") {
             (
@@ -237,18 +307,17 @@ impl<'a> Runtime<'a> {
         } else {
             let i_s = window.inner_size();
 
-            (i_s.width, i_s.height)
+            if i_s.height == 0 || i_s.width == 0 {
+                self.size
+            } else {
+                (i_s.width, i_s.height)
+            }
         };
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
 
         let surface = instance.create_surface(window)?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference,
+                power_preference: *power_preference,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
@@ -296,13 +365,13 @@ Adapter:
         };
         surface.configure(&device, &config);
 
-        self.worker = Some(Worker::new(
+        *worker_surface = Some(Worker::new(
             size,
             1.,
             RuntimeKind::Winit(SurfaceProperties { config, surface }),
             device,
             queue,
-            limits,
+            limits.clone(),
             None,
             Context::new(),
         )?);
