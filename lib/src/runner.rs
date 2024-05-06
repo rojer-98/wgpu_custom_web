@@ -89,7 +89,7 @@ impl EngineRunner {
     pub async fn run(self) -> Result<()> {
         EventLoop::<UserEvent>::with_user_event()
             .build()?
-            .run_app(&mut Runtime::new((1600, 1200)).add_render::<SimpleModelRender>())?;
+            .run_app(&mut Runtime::new((1600, 1200)).render::<SimpleModelRender>())?;
 
         Ok(())
     }

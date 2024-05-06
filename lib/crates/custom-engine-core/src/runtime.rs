@@ -38,6 +38,17 @@ pub(crate) struct SurfaceProperties<'a> {
     pub surface: wgpu::Surface<'a>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) enum IntoRuntime {
+    Window,
+    Texture {
+        path: String,
+        format: ImageFormat,
+        new_size: (u32, u32),
+    },
+}
+
 pub struct Runtime<'a> {
     pub(crate) size: (u32, u32),
     pub(crate) limits: wgpu::Limits,
@@ -133,8 +144,6 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
                             _ => {}
                         }
                     });
-
-                    //window.request_redraw();
                 }
             }
             WindowEvent::Occluded(_occluded) => {}
@@ -217,13 +226,15 @@ impl<'a> Runtime<'a> {
         }
     }
 
-    pub fn add_render<RW: RenderWorker + 'a>(mut self) -> Self {
+    pub fn render<RW: RenderWorker + 'a>(mut self) -> Self {
         self.renders.push(Box::new(RW::new()));
 
         self
     }
 
-    pub async fn worker_texture(
+    // Currently unused
+    #[allow(dead_code)]
+    async fn worker_texture(
         mut self,
         texture_path: String,
         image_format: ImageFormat,
@@ -378,4 +389,29 @@ Adapter:
 
         Ok(())
     }
+
+    //  fn reinit_worker(&self, into_runtime: IntoRuntime) -> Result<Worker<'a>, CoreError> {
+    //     let new_size = match into_runtime {
+    //         IntoRuntime::Window => {
+    //             self.worker.runtime_kind = RuntimeKind::Winit(
+    //                 self.configure_surface()
+    //                     .ok_or(CoreError::SurfaceNotConfigured)?,
+    //             );
+
+    //             self.size
+    //         }
+    //         IntoRuntime::Texture {
+    //             path,
+    //             format,
+    //             new_size,
+    //         } => {
+    //             worker.runtime_kind = RuntimeKind::Texture(path, format);
+    //             new_size
+    //         }
+    //     };
+
+    //     worker.init_with_size(new_size)?;
+
+    //     Ok(worker)
+    // }
 }
