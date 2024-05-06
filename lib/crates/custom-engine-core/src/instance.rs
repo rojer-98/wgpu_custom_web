@@ -1,4 +1,4 @@
-use cgmath::{Deg, InnerSpace, Matrix4, Quaternion, Rotation3, Vector3, Zero};
+use cgmath::{Deg, InnerSpace, Matrix3, Matrix4, Quaternion, Rotation3, Vector3, Zero};
 
 use custom_engine_derive::VertexLayout;
 
@@ -54,6 +54,7 @@ impl Instance {
     pub fn data(&self) -> InstanceRaw {
         InstanceRaw {
             model: (Matrix4::from_translation(self.position) * Matrix4::from(self.rotation)).into(),
+            normal: Matrix3::from(self.rotation).into(),
         }
     }
 }
@@ -61,8 +62,8 @@ impl Instance {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, VertexLayout)]
 #[attributes("Instance")]
-#[attributes("5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4")]
+#[attributes("5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4, 9 => Float32x3, 10 => Float32x3, 11 => Float32x3")]
 pub struct InstanceRaw {
-    #[allow(dead_code)]
     model: [[f32; 4]; 4],
+    normal: [[f32; 3]; 3],
 }

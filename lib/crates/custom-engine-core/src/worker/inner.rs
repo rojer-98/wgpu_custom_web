@@ -9,8 +9,10 @@ use crate::{
     model::Model,
     render_pass::RenderPass,
     runtime::RuntimeKind,
+    storage::Storages,
     texture::{CopyTextureParams, RenderTexture},
     traits::Builder,
+    uniform::Uniforms,
     worker::{View, Worker},
 };
 
@@ -54,7 +56,7 @@ impl<'a> Worker<'a> {
                 RuntimeKind::Winit(s_p) => {
                     s_p.config.width = new_size.0;
                     s_p.config.height = new_size.1;
-                    s_p.surface.configure(&self.device, &s_p.config);
+                    s_p.surface.configure(&&self.device, &s_p.config);
                 }
                 RuntimeKind::Texture(_, _) => {
                     if let Err(e) = self.init_runtime_texture() {
@@ -75,26 +77,26 @@ impl<'a> Worker<'a> {
         if let Some(View::Texture(t, b)) = self.view.as_ref() {
             render_pass
                 .copy_params(CopyTextureParams::new(b, t))
-                .render(self.queue)
+                .render(&self.queue)
         } else {
-            render_pass.render(self.queue)
+            render_pass.render(&self.queue)
         }
     }
 
     #[inline]
     pub fn render_pass(&self) -> RenderPass<'_> {
-        RenderPass::new(self.device, 0)
+        RenderPass::new(&self.device, 0)
     }
 
     // Helpers
     #[inline]
     pub fn load_texture(&self, rt: &RenderTexture) {
-        rt.store_to_memory(self.queue);
+        rt.store_to_memory(&self.queue);
     }
 
     #[inline]
     pub fn load_model(&self, model: &Model) {
-        model.load(self.queue)
+        model.load(&self.queue)
     }
 
     pub fn update_uniform<T: bytemuck::Pod + bytemuck::Zeroable>(
@@ -104,6 +106,16 @@ impl<'a> Worker<'a> {
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let uniform = self.get_uniform_ref(id)?;
+
+        self.update_uniform_direct(&uniform, name, data)
+    }
+
+    pub fn update_uniform_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        uniform: &'_ Uniforms,
+        name: &str,
+        data: &'_ [T],
+    ) -> Result<(), CoreError> {
         let buffer = uniform
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
@@ -111,13 +123,23 @@ impl<'a> Worker<'a> {
         self.update_buffer_data(buffer, 0, data)
     }
 
-    pub fn update_storage_buffer<T: bytemuck::Pod + bytemuck::Zeroable>(
+    pub fn update_storage<T: bytemuck::Pod + bytemuck::Zeroable>(
         &self,
         id: usize,
         name: &str,
         data: &'_ [T],
     ) -> Result<(), CoreError> {
         let storage = self.get_storage_ref(id)?;
+
+        self.update_storage_direct(&storage, name, data)
+    }
+
+    pub fn update_storage_direct<T: bytemuck::Pod + bytemuck::Zeroable>(
+        &self,
+        storage: &'_ Storages,
+        name: &str,
+        data: &'_ [T],
+    ) -> Result<(), CoreError> {
         let buffer = storage
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;
@@ -154,7 +176,7 @@ impl<'a> Worker<'a> {
         let buffer = uniform
             .get_buffer(name)
             .ok_or(CoreError::UniformBufferNotFound(name.to_string()))?;
-        let buffer_data = buffer.read_buffer_async(self.device).await?;
+        let buffer_data = buffer.read_buffer_async(&self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
@@ -170,7 +192,7 @@ impl<'a> Worker<'a> {
         let buffer = storage
             .get_buffer(name)
             .ok_or(CoreError::StorageNotFound(name.to_string()))?;
-        let buffer_data = buffer.read_buffer_async(self.device).await?;
+        let buffer_data = buffer.read_buffer_async(&self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
@@ -182,7 +204,7 @@ impl<'a> Worker<'a> {
         id: usize,
     ) -> Result<Vec<T>, CoreError> {
         let buffer = self.get_buffer_ref(id)?;
-        let buffer_data = buffer.read_buffer_async(self.device).await?;
+        let buffer_data = buffer.read_buffer_async(&self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 
@@ -193,7 +215,7 @@ impl<'a> Worker<'a> {
         &self,
         buffer: &'_ Buffer,
     ) -> Result<Vec<T>, CoreError> {
-        let buffer_data = buffer.read_buffer_async(self.device).await?;
+        let buffer_data = buffer.read_buffer_async(&self.device).await?;
 
         let cast_data: &[T] = bytemuck::cast_slice(&buffer_data);
 

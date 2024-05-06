@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{errors::CoreError, worker::Worker};
 
 use winit::event::WindowEvent;
@@ -30,23 +32,27 @@ pub trait Builder<'a> {
 }
 
 pub trait RenderWorker {
-    async fn init(_: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
     where
         Self: Sized;
-    async fn reinit(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>
-    where
-        Self: Sized,
-    {
-        Ok(())
-    }
-    async fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
-        Ok(())
-    }
+    fn init(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError>;
 
-    fn update(&mut self, _: &mut Worker<'_>, _: &WindowEvent) -> Result<(), CoreError> {
+    fn render(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
+        Ok(())
+    }
+    fn update(
+        &mut self,
+        _: &mut Worker<'_>,
+        _: &WindowEvent,
+        _: Duration,
+    ) -> Result<(), CoreError> {
         Ok(())
     }
     fn resize(&mut self, _: &mut Worker<'_>) -> Result<(), CoreError> {
         Ok(())
     }
+}
+
+pub trait OnEvent {
+    fn on_event(&self);
 }

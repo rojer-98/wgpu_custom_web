@@ -7,20 +7,20 @@ edition = "2021"
 
 [dependencies]
 # Log 
-log = "0.4.20"
+log = "0.4.21"
 
 # Error
-anyhow = "1.0.79"
+anyhow = "1.0.82"
 
 # Helpers
 cfg-if = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]  
-reqwest = { version = "0.11.24" }
+reqwest = { version = "0.12.4" }
 getrandom = { version = "0.2", features = [ "js" ] }
-web-sys = { version = "0.3.68", features = [ 
+web-sys = { version = "0.3.69", features = [ 
   "Document",
   "Window",
   "Location",
 ]}
-wasm-bindgen = { version = "0.2.62" }
+wasm-bindgen = { version = "0.2.92" }

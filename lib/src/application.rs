@@ -4,12 +4,14 @@ pub mod key_bindings;
 use instant::{Duration, Instant};
 use winit::{dpi::PhysicalPosition, event::ElementState};
 
+#[derive(Debug)]
 pub enum ClickType {
     Simple,
     Double,
     Triple,
 }
 
+#[derive(Debug)]
 pub struct AppState {
     pub(crate) cursor_position: PhysicalPosition<f64>,
 

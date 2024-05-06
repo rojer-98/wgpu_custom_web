@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use winit::event::WindowEvent;
 
 pub trait Component<T: bytemuck::Zeroable + bytemuck::Pod> {
     fn data(&self) -> T;
-    fn update(&mut self, event: &WindowEvent);
+    fn update(&mut self, event: &WindowEvent, dt: Duration);
 }
 
 pub trait Object {}

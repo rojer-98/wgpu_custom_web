@@ -1,4 +1,5 @@
 use anyhow::Result;
+use instant::Duration;
 use log::error;
 #[cfg(not(target_arch = "wasm32"))]
 use log::LevelFilter;
@@ -14,15 +15,15 @@ use winit::event_loop::EventLoopProxy;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, KeyEvent, WindowEvent},
-    event_loop::{EventLoop, EventLoopBuilder},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopBuilder},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 use custom_engine_core::{errors::CoreError, runtime::Runtime, traits::RenderWorker};
 
 use crate::{
-    application::foreign::UserEvent,
+    application::{foreign::UserEvent, AppState},
     config::{EngineConfig, LoadConfig},
     workers::model::SimpleModelRender,
 };
@@ -95,98 +96,19 @@ impl EngineRunner {
     }
 
     pub async fn run(self) -> Result<()> {
-        let (event_loop, window) = self.env_init()?;
-
-        let runtime = Runtime::init(Some(&window)).await?;
-        //let mut app_state = AppState::new();
-        let mut worker_surface = runtime.worker_surface()?;
-        let mut r = SimpleModelRender::init(&mut worker_surface).await?;
-
-        event_loop.run(|event, control_flow| match event {
-            Event::UserEvent(u_e) => u_e.on_event(),
-
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() => {
-                r.update(&mut worker_surface, event).unwrap();
-
-                match event {
-                    // Worker
-                    WindowEvent::RedrawRequested => {
-                        match block_on(async { r.render(&mut worker_surface).await }) {
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => {
-                                worker_surface.resize()
-                            }
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => {
-                                worker_surface.resize()
-                            }
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
-                                control_flow.exit()
-                            }
-                            Err(e) => error!("{e}"),
-                            _ => {}
-                        }
-
-                        window.request_redraw();
-                    }
-                    WindowEvent::Resized(new_size) => {
-                        worker_surface.resize_by_size((new_size.width, new_size.height));
-                        r.resize(&mut worker_surface).unwrap();
-                    }
-                    WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                        worker_surface.resize_by_scale(*scale_factor);
-                        r.resize(&mut worker_surface).unwrap();
-                    }
-
-                    // Mouse
-                    // WindowEvent::CursorMoved { position, .. } => {
-                    //     if app_state.click_state.is_pressed() {
-                    //         let diff = (
-                    //             position.x - app_state.cursor_position.x,
-                    //             position.y - app_state.cursor_position.y,
-                    //         );
-                    //         r.move_to(&mut worker_surface, diff).unwrap();
-                    //     }
-
-                    //     app_state.cursor_position = *position;
-                    // }
-                    // WindowEvent::MouseInput { state, .. } => {
-                    //     if state.is_pressed() {
-                    //         app_state.clicked();
-
-                    //         r.click(&mut worker_surface, &app_state).unwrap();
-                    //     }
-
-                    //     app_state.click_state = *state;
-                    // }
-
-                    // Exit
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        event:
-                            KeyEvent {
-                                logical_key: Key::Named(NamedKey::Escape),
-                                ..
-                            },
-                        ..
-                    } => {
-                        control_flow.exit();
-                    }
-                    _ => {}
-                }
-            }
-            _ => {}
-        })?;
+        EventLoop::<UserEvent>::with_user_event()
+            .build()?
+            .run_app(&mut Runtime::new((1600, 1200)).add_render::<SimpleModelRender>())?;
 
         Ok(())
     }
 
     fn env_init(&self) -> Result<(EventLoop<UserEvent>, Window)> {
-        let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build()?;
-        let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(self.config.width, self.config.height))
-            .build(&event_loop)?;
+        let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
+        let window = event_loop.create_window(
+            Window::default_attributes()
+                .with_inner_size(PhysicalSize::new(self.config.width, self.config.height)),
+        )?;
 
         cfg_if::cfg_if! {
           if #[cfg(target_arch = "wasm32")] {

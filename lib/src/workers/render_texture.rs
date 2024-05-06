@@ -1,18 +1,16 @@
 use std::{fs::read, path::Path};
 
-use custom_engine_components::{components::camera::Camera, traits::Component};
+use anyhow::Result;
+
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
     render_pass::RenderStage,
     traits::{Builder, RenderWorker, VertexLayout},
-    uniform::UniformDescription,
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-
-use anyhow::Result;
-use winit::event::WindowEvent;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -58,17 +56,24 @@ const VERTICES_POS: &[VertexPos] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleRenderTexture {
     vb_id: usize,
     p_id: usize,
     rt_id: usize,
-    c_id: usize,
-
-    camera: Camera,
 }
 
 impl RenderWorker for SimpleRenderTexture {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -89,19 +94,6 @@ impl RenderWorker for SimpleRenderTexture {
                 write_mask: wgpu::ColorWrites::ALL,
             }])
             .source(sh_data)
-            .build()?;
-
-        let camera = Camera::default();
-        let (c_id, c_b_builder) = w.create_uniform_id();
-        let c_b = c_b_builder
-            .name("Uniform block")
-            .entries(UniformDescription::new(
-                "Camera",
-                0,
-                wgpu::ShaderStages::VERTEX,
-                &[camera.data()],
-            ))
-            .bind_group_binding(1)
             .build()?;
 
         let image_data = get_image_data("some.png").unwrap();
@@ -153,7 +145,7 @@ impl RenderWorker for SimpleRenderTexture {
         let pipeline_layout = w
             .create_pipeline_layout()
             .label("Some pipeline layout")
-            .entries(vec![bgl, c_b.get_layout()])
+            .entries(vec![bgl])
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder
@@ -181,41 +173,22 @@ impl RenderWorker for SimpleRenderTexture {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
         w.add_render_texture(rt);
-        w.add_uniform(c_b);
 
-        Ok(Self {
-            rt_id,
-            p_id,
-            vb_id,
-            c_id,
-
-            camera,
-        })
-    }
-
-    fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
-        self.camera.update(event);
-        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
+        *self = Self { rt_id, p_id, vb_id };
 
         Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderTexture {
-            vb_id,
-            p_id,
-            rt_id,
-            c_id,
-            ..
+            vb_id, p_id, rt_id, ..
         } = self;
 
         let pipeline = w.get_pipeline_ref(*p_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
         let rt = w.get_render_texture_ref(*rt_id)?;
-        let c = w.get_uniform_ref(*c_id)?;
 
         let bg_t = rt.bind_group()?;
-        let bg_c = c.get_group();
 
         let view = w.texture_view()?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
@@ -238,11 +211,11 @@ impl RenderWorker for SimpleRenderTexture {
                 .instances(0..6)
                 .entities(0..6)
                 .vertex_buffer(&vb)
-                .bind_groups(vec![bg_t, bg_c]),
+                .bind_groups(vec![bg_t]),
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }

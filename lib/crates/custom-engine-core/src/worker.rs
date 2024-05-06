@@ -26,8 +26,8 @@ impl View {
 
 #[derive(Debug)]
 pub struct Worker<'a> {
-    pub(crate) device: &'a wgpu::Device,
-    pub(crate) queue: &'a wgpu::Queue,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
     pub(crate) limits: wgpu::Limits,
 
     pub(crate) runtime_kind: RuntimeKind<'a>,
@@ -45,8 +45,8 @@ impl<'a> Worker<'a> {
         size: (u32, u32),
         scale_factor: f64,
         runtime_kind: RuntimeKind<'a>,
-        device: &'a wgpu::Device,
-        queue: &'a wgpu::Queue,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
         limits: wgpu::Limits,
         view: Option<View>,
         context: Context,

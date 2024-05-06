@@ -1,3 +1,6 @@
+use anyhow::Result;
+use cgmath::Vector3;
+
 use custom_engine_components::object::triangle::{Triangle, Triangles};
 use custom_engine_core::{
     errors::CoreError,
@@ -7,9 +10,7 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-
-use anyhow::Result;
-use cgmath::Vector3;
+use pollster::block_on;
 
 use crate::{
     application::AppState,
@@ -23,6 +24,7 @@ struct UData {
     pub size: [f32; 4],
 }
 
+#[derive(Debug, Default)]
 pub struct SimpleRender {
     shift: f32,
     counter: usize,
@@ -57,7 +59,16 @@ impl SimpleRender {
 }
 
 impl RenderWorker for SimpleRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -152,14 +163,16 @@ impl RenderWorker for SimpleRender {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self {
+        *self = Self {
             p_id,
             vb_id,
             c_id,
             data,
             shift,
             counter: 0,
-        })
+        };
+
+        Ok(())
     }
 
     fn resize(&mut self, w: &mut Worker<'_>) -> std::prelude::v1::Result<(), CoreError> {
@@ -173,7 +186,7 @@ impl RenderWorker for SimpleRender {
         Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRender {
             vb_id, p_id, c_id, ..
         } = self;
@@ -207,7 +220,7 @@ impl RenderWorker for SimpleRender {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         if self.counter < 4 {
             self.counter += 1;

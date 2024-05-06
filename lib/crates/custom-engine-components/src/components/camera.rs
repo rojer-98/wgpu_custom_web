@@ -1,208 +1,130 @@
-use cgmath::{perspective, Deg, InnerSpace, Matrix4, Point3, Vector3, Vector4};
-use derive_more::Constructor;
-use winit::{
-    event::WindowEvent,
-    keyboard::{Key, NamedKey},
+pub(crate) mod controller;
+pub(crate) mod data;
+pub(crate) mod projection;
+
+use anyhow::Result;
+use cgmath::{Deg, Matrix, SquareMatrix};
+use instant::Duration;
+use winit::event::WindowEvent;
+
+use custom_engine_core::{
+    bind_group::{layout::BindGroupLayout, BindGroup},
+    errors::CoreError,
+    traits::Builder,
+    uniform::{UniformDescription, Uniforms},
+    worker::Worker,
 };
 
-use custom_engine_models::gltf::Camera as GltfCamera;
-
-use crate::traits::Component;
+use crate::{
+    components::camera::{controller::CameraController, data::CameraData, projection::Projection},
+    traits::Component,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraRaw {
     view_position: [f32; 4],
+    view: [[f32; 4]; 4],
     view_proj: [[f32; 4]; 4],
+    inv_proj: [[f32; 4]; 4],
+    inv_view: [[f32; 4]; 4],
 }
 
-#[derive(Debug, Constructor)]
-pub struct Camera {
+#[derive(Debug, Default)]
+pub struct CameraInner {
     data: CameraData,
     controller: CameraController,
+    projection: Projection,
 }
 
-impl From<&GltfCamera> for Camera {
-    fn from(value: &GltfCamera) -> Self {
-        let data = match value {
-            GltfCamera::Perspective(p) => CameraData {
-                fovy: p.fovy.0,
-                zfar: p.zfar.unwrap_or(100.),
-                znear: p.znear,
-                aspect: p.aspect_ratio,
-
-                ..Default::default()
-            },
-            GltfCamera::Orthographic(_) => CameraData {
-                ..Default::default()
-            },
-        };
-
+impl CameraInner {
+    pub fn new(projection: Projection, data: CameraData, controller: CameraController) -> Self {
         Self {
+            projection,
             data,
-            ..Default::default()
+            controller,
         }
     }
 }
 
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            controller: Default::default(),
-            data: Default::default(),
-        }
-    }
-}
-
-impl Component<CameraRaw> for Camera {
+impl Component<CameraRaw> for CameraInner {
     fn data(&self) -> CameraRaw {
-        const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0,
-        );
+        let proj = self.projection.matrix();
+        let view = self.data.matrix();
+        let view_proj = proj * view;
 
-        let view = self.data.view();
-        let proj = self.data.projection();
-
-        let view_proj: [[f32; 4]; 4] = (OPENGL_TO_WGPU_MATRIX * proj * view).into();
-        let view_position: [f32; 4] = self.data.position().into();
+        let view_position = self.data.position.to_homogeneous().into();
+        let inv_proj = proj.invert().unwrap().into();
+        let inv_view = view.transpose().into();
+        let view_proj = view_proj.into();
+        let view = view.into();
 
         CameraRaw {
             view_position,
+            inv_view,
+            inv_proj,
             view_proj,
+            view,
         }
     }
 
-    fn update(&mut self, event: &WindowEvent) {
+    fn update(&mut self, event: &WindowEvent, dt: Duration) {
         if self.controller.process_events(event) {
-            self.data.update(&self.controller);
-            self.controller.reset();
-        }
-    }
-}
-
-#[derive(Debug, Constructor)]
-struct CameraData {
-    pub eye: Point3<f32>,
-    pub target: Point3<f32>,
-    pub up: Vector3<f32>,
-    pub aspect: f32,
-    pub fovy: f32,
-    pub znear: f32,
-    pub zfar: f32,
-}
-
-impl Default for CameraData {
-    fn default() -> Self {
-        Self {
-            eye: (0.0, 5.0, -30.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: 1.,
-            fovy: 10.0,
-            znear: 0.1,
-            zfar: 100.0,
-        }
-    }
-}
-
-impl CameraData {
-    #[inline(always)]
-    fn projection(&self) -> Matrix4<f32> {
-        perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar)
-    }
-
-    #[inline(always)]
-    fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(self.eye, self.target, self.up)
-    }
-
-    #[inline(always)]
-    fn position(&self) -> Vector4<f32> {
-        self.eye.to_homogeneous()
-    }
-
-    fn update(&mut self, controller: &CameraController) {
-        let forward = self.target - self.eye;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
-
-        if controller.is_forward_pressed && forward_mag > controller.speed {
-            self.eye += forward_norm * controller.speed;
-        }
-        if controller.is_backward_pressed {
-            self.eye -= forward_norm * controller.speed;
-        }
-
-        let right = forward_norm.cross(self.up);
-        let forward = self.target - self.eye;
-        let forward_mag = forward.magnitude();
-
-        if controller.is_right_pressed {
-            self.eye = self.target - (forward + right * controller.speed).normalize() * forward_mag;
-        }
-        if controller.is_left_pressed {
-            self.eye = self.target - (forward - right * controller.speed).normalize() * forward_mag;
+            self.data.update(&mut self.controller, dt);
         }
     }
 }
 
 #[derive(Debug)]
-struct CameraController {
-    speed: f32,
-
-    is_forward_pressed: bool,
-    is_backward_pressed: bool,
-    is_left_pressed: bool,
-    is_right_pressed: bool,
+pub struct Camera {
+    inner: CameraInner,
+    uniform: Uniforms,
 }
 
-impl Default for CameraController {
-    fn default() -> Self {
-        Self {
-            speed: 1.,
-            is_forward_pressed: false,
-            is_backward_pressed: false,
-            is_left_pressed: false,
-            is_right_pressed: false,
-        }
-    }
-}
+impl Camera {
+    pub fn init(w: &mut Worker<'_>, bind_group_binding: u32) -> Result<Self, CoreError> {
+        let size = w.size();
 
-impl CameraController {
-    fn process_events(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput { event, .. } => {
-                let keycode = event.logical_key.clone();
-                let is_pressed = event.state.is_pressed();
+        let projection = Projection::new(size.0, size.1, Deg(45.), 0.1, 100.);
+        let controller = CameraController::new(0.2, 0.2);
+        let data = CameraData::new((0.0, 5.0, 10.0), Deg(-90.0), Deg(-20.0));
 
-                match keycode {
-                    Key::Named(NamedKey::ArrowUp) => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowLeft) => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowDown) => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    Key::Named(NamedKey::ArrowRight) => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
+        let inner = CameraInner::new(projection, data, controller);
+        let uniform = w
+            .create_uniform()
+            .name("Uniform block")
+            .entries(UniformDescription::new(
+                "Camera",
+                0,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                &[inner.data()],
+            ))
+            .bind_group_binding(bind_group_binding)
+            .build()?;
+
+        Ok(Self { uniform, inner })
     }
 
-    fn reset(&mut self) {
-        *self = Self {
-            speed: self.speed,
-            ..Default::default()
-        };
+    pub fn update(
+        &mut self,
+        w: &mut Worker<'_>,
+        event: &WindowEvent,
+        dt: Duration,
+    ) -> Result<(), CoreError> {
+        self.inner.update(event, dt);
+
+        w.update_uniform_direct(&self.uniform, "Camera", &[self.inner.data()])
+    }
+
+    pub fn bind_group(&self) -> &BindGroup {
+        self.uniform.get_group()
+    }
+
+    pub fn bind_group_layout(&self) -> &BindGroupLayout {
+        self.uniform.get_layout()
+    }
+
+    pub fn to_worker(self, w: &mut Worker<'_>) {
+        w.add_uniform(self.uniform)
     }
 }

@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
@@ -6,8 +8,7 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-
-use anyhow::Result;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -35,13 +36,23 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleRenderToTexture {
     vb_id: usize,
     p_id: usize,
 }
 
 impl RenderWorker for SimpleRenderToTexture {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -101,10 +112,12 @@ impl RenderWorker for SimpleRenderToTexture {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self { p_id, vb_id })
+        *self = Self { p_id, vb_id };
+
+        Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleRenderToTexture {
             ref vb_id,
             ref p_id,
@@ -138,7 +151,7 @@ impl RenderWorker for SimpleRenderToTexture {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }

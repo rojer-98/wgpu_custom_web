@@ -1,3 +1,8 @@
+use anyhow::Result;
+use instant::Duration;
+use pollster::block_on;
+use winit::event::WindowEvent;
+
 use custom_engine_components::{
     components::{camera::Camera, light::Light},
     traits::Component,
@@ -17,14 +22,12 @@ use custom_engine_core::{
 };
 use custom_engine_models::{gltf::GltfFile, obj::ObjFile};
 
-use anyhow::Result;
-use winit::event::WindowEvent;
-
 use crate::files::{ShaderFiles, ShaderKind};
 
 const NUM_INSTANCES_PER_ROW: u32 = 10;
 const SPACE_BETWEEN: f32 = 3.0;
 
+#[derive(Debug, Default)]
 pub struct SimpleModelRender {
     sh_id: usize,
     pl_id: usize,
@@ -39,22 +42,32 @@ pub struct SimpleModelRender {
     hdr_sh_id: usize,
     hdr_pl_id: usize,
 
-    camera: Camera,
+    camera: Option<Camera>,
     light: Light,
     size: (u32, u32),
 }
 
 impl RenderWorker for SimpleModelRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
     where
         Self: Sized,
     {
-        let obj_file = ObjFile::new("./assets/models/cube/cube.obj").await?;
-        let gltf_file = GltfFile::new("./assets/models/boom_box/BoomBox.gltf").await?;
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
+    where
+        Self: Sized,
+    {
+        let obj_file = block_on(async { ObjFile::new("./assets/models/cube/cube.obj").await })?;
+        let _gltf_file =
+            block_on(async { GltfFile::new("./assets/models/avocado/Avocado.glb").await })?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
-            .file((0, gltf_file.into()).into())
+            .file(obj_file.into())
             .diffuse_texture_params(TextureParams {
                 view_binding: 0,
                 sampler_binding: 1,
@@ -80,21 +93,15 @@ impl RenderWorker for SimpleModelRender {
             .usage(wgpu::BufferUsages::VERTEX)
             .build()?;
 
-        let camera = Camera::default();
-        let light = Light::default();
+        let camera = Camera::init(w, 2)?;
 
+        let light = Light::default();
         let (c_id, c_b_builder) = w.create_uniform_id();
         let c_b = c_b_builder
             .name("Uniform block")
             .entries(UniformDescription::new(
-                "Camera",
-                0,
-                wgpu::ShaderStages::VERTEX_FRAGMENT,
-                &[camera.data()],
-            ))
-            .entries(UniformDescription::new(
                 "Light",
-                1,
+                0,
                 wgpu::ShaderStages::VERTEX_FRAGMENT,
                 &[light.data()],
             ))
@@ -127,7 +134,7 @@ impl RenderWorker for SimpleModelRender {
         let (pl_id, pipeline_layout_builder) = w.create_pipeline_layout_id();
         let pipeline_layout = pipeline_layout_builder
             .label("Some pipeline layout")
-            .entries(vec![bgl, c_b.get_layout()])
+            .entries(vec![bgl, c_b.get_layout(), camera.bind_group_layout()])
             .build()?;
         let (p_id, pipeline_builder) = w.create_pipeline_id();
         let pipeline = pipeline_builder
@@ -250,7 +257,7 @@ impl RenderWorker for SimpleModelRender {
         w.add_pipeline_layout(hdr_pl);
         w.add_pipeline(hdr_p);
 
-        Ok(Self {
+        *self = Self {
             c_id,
             pl_id,
             p_id,
@@ -264,12 +271,14 @@ impl RenderWorker for SimpleModelRender {
             hdr_pl_id,
 
             light,
-            camera,
+            camera: Some(camera),
             size,
-        })
+        };
+
+        Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleModelRender {
             m_id,
             p_id,
@@ -278,9 +287,11 @@ impl RenderWorker for SimpleModelRender {
             hdr_p_id,
             hdr_t_id,
             size,
+            camera,
             ..
         } = self;
 
+        let camera = camera.as_ref().unwrap();
         let pipeline = w.get_pipeline_ref(*p_id)?;
         let m = w.get_model_ref(*m_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
@@ -332,7 +343,7 @@ impl RenderWorker for SimpleModelRender {
                     .entities(0..1)
                     .instances(0..30)
                     .vertex_buffer(&vb)
-                    .bind_groups(vec![c.get_group()])
+                    .bind_groups(vec![c.get_group(), camera.bind_group()])
                     .model(&m),
             )
             .render_stage(
@@ -358,16 +369,20 @@ impl RenderWorker for SimpleModelRender {
             );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
         Ok(())
     }
 
-    fn update(&mut self, w: &mut Worker<'_>, event: &WindowEvent) -> Result<(), CoreError> {
-        self.camera.update(event);
-        self.light.update(event);
+    fn update(
+        &mut self,
+        w: &mut Worker<'_>,
+        event: &WindowEvent,
+        dt: Duration,
+    ) -> Result<(), CoreError> {
+        self.camera.as_mut().unwrap().update(w, event, dt)?;
+        self.light.update(event, dt);
 
-        w.update_uniform(self.c_id, "Camera", &[self.camera.data()])?;
         w.update_uniform(self.c_id, "Light", &[self.light.data()])?;
 
         Ok(())

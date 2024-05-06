@@ -2,17 +2,20 @@ use std::path::Path;
 
 use anyhow::{anyhow, Result};
 use base64::prelude::*;
+use derivative::Derivative;
 
 use custom_engine_utils::get_data;
 
 use crate::gltf::document::Document;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Texture {
     pub index: usize, // glTF index
     pub name: Option<String>,
 
     pub tex_coord: u32, // the tex coord set to use
+    #[derivative(Debug = "ignore")]
     pub dyn_image: Vec<u8>,
 }
 

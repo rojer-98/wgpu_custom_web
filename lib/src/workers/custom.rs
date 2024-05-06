@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use custom_engine_core::{
     errors::CoreError,
     render_pass::color_attachment::ColorAttachmentBuilder,
@@ -7,8 +9,7 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-
-use anyhow::Result;
+use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -44,6 +45,7 @@ const VERTICES: &[Vertex] = &[
     },
 ];
 
+#[derive(Debug, Default)]
 pub struct SimpleCustomRender {
     vb_id: usize,
     s_id: usize,
@@ -53,7 +55,16 @@ pub struct SimpleCustomRender {
 }
 
 impl RenderWorker for SimpleCustomRender {
-    async fn init(w: &mut Worker<'_>) -> Result<Self, CoreError>
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    fn init(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError>
     where
         Self: Sized,
     {
@@ -135,15 +146,17 @@ impl RenderWorker for SimpleCustomRender {
         w.add_pipeline_layout(pipeline_layout);
         w.add_shader(shader);
 
-        Ok(Self {
+        *self = Self {
             p_id,
             vb_id,
             s_id,
             counter: 0.0,
-        })
+        };
+
+        Ok(())
     }
 
-    async fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
+    fn render(&mut self, w: &mut Worker<'_>) -> Result<(), CoreError> {
         let SimpleCustomRender {
             vb_id, p_id, s_id, ..
         } = self;
@@ -177,12 +190,11 @@ impl RenderWorker for SimpleCustomRender {
         );
 
         w.render(r_p)?;
-        w.present().await?;
+        block_on(async { w.present().await })?;
 
-        let out = w.read_storage_buffer::<Vertex>(s.id, "Storage").await?;
-        log::info!("{out:#?}");
+        let out = block_on(async { w.read_storage_buffer::<Vertex>(s.id, "Storage").await })?;
 
-        w.update_storage_buffer(
+        w.update_storage(
             s.id,
             "Storage",
             &out.into_iter()

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use cgmath::Vector3;
 use winit::{event::WindowEvent, keyboard::Key};
 
@@ -37,7 +39,7 @@ impl Component<LightRaw> for Light {
         }
     }
 
-    fn update(&mut self, event: &WindowEvent) {
+    fn update(&mut self, event: &WindowEvent, _: Duration) {
         if self.controller.process_events(event) {
             self.data.update(&self.controller);
             self.controller.reset();
@@ -72,13 +74,13 @@ impl LightData {
     fn update(&mut self, controller: &LightController) {
         let old_position = self.position;
         let shift_vec = if controller.is_forward_pressed {
-            Vector3::new(0., 0., -0.05)
+            Vector3::new(0., 0., -0.5)
         } else if controller.is_backward_pressed {
-            Vector3::new(0., 0., 0.05)
+            Vector3::new(0., 0., 0.5)
         } else if controller.is_left_pressed {
-            Vector3::new(-0.05, 0., 0.)
+            Vector3::new(-0.5, 0., 0.)
         } else if controller.is_right_pressed {
-            Vector3::new(0.05, 0., 0.)
+            Vector3::new(0.5, 0., 0.)
         } else {
             Vector3::new(0., 0., 0.)
         };
@@ -100,7 +102,7 @@ struct LightController {
 impl Default for LightController {
     fn default() -> Self {
         Self {
-            speed: 0.2,
+            speed: 2.,
             is_forward_pressed: false,
             is_backward_pressed: false,
             is_left_pressed: false,
@@ -118,19 +120,19 @@ impl LightController {
 
                 match keycode {
                     Key::Character(s) => match s.as_str() {
-                        "w" => {
+                        "t" => {
                             self.is_forward_pressed = is_pressed;
                             true
                         }
-                        "a" => {
+                        "f" => {
                             self.is_left_pressed = is_pressed;
                             true
                         }
-                        "s" => {
+                        "g" => {
                             self.is_backward_pressed = is_pressed;
                             true
                         }
-                        "d" => {
+                        "h" => {
                             self.is_right_pressed = is_pressed;
                             true
                         }
