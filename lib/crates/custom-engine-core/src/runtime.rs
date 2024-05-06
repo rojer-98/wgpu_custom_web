@@ -49,17 +49,15 @@ pub(crate) enum IntoRuntime {
     },
 }
 
-pub struct Runtime<'a> {
+pub struct Runtime<'a, R: RenderWorker + 'a> {
     pub(crate) size: (u32, u32),
     pub(crate) limits: wgpu::Limits,
     pub(crate) instance: wgpu::Instance,
     pub(crate) power_preference: wgpu::PowerPreference,
 
     //pub state: RuntimeState,
-    worker_surface: Option<Worker<'a>>,
-    worker_textures: Vec<Worker<'a>>,
-
-    renders: Vec<Box<dyn RenderWorker + 'a>>,
+    worker: Option<Worker<'a>>,
+    render: R,
 }
 
 /*
@@ -97,7 +95,7 @@ Event::WindowEvent {
 
 */
 
-impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
+impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a> ApplicationHandler<E> for Runtime<'a, R> {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: E) {
         event.on_event()
     }
@@ -110,40 +108,40 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
     ) {
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
-                if let Some(w) = self.worker_surface.as_mut() {
+                if let Some(w) = self.worker.as_mut() {
                     w.resize_by_size((width, height));
-                    self.renders.iter_mut().for_each(|r| {
-                        if let Err(e) = r.resize(w) {
-                            error!("{e}");
-                        }
-                    });
+
+                    if let Err(e) = self.render.resize(w) {
+                        error!("{e}");
+                    }
                 }
             }
             WindowEvent::Focused(_focused) => {}
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(w) = self.worker_surface.as_mut() {
+                if let Some(w) = self.worker.as_mut() {
                     w.resize_by_scale(scale_factor);
-                    self.renders.iter_mut().for_each(|r| {
-                        if let Err(e) = r.resize(w) {
-                            error!("{e}");
-                        }
-                    });
+
+                    if let Err(e) = self.render.resize(w) {
+                        error!("{e}");
+                    }
                 }
             }
             WindowEvent::ThemeChanged(_theme) => {}
             WindowEvent::RedrawRequested => {
-                if let Some(w) = self.worker_surface.as_mut() {
-                    self.renders.iter_mut().for_each(|r| {
-                        match r.update(w, &event, Duration::from_secs(1)).and(r.render(w)) {
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
-                                event_loop.exit();
-                            }
-                            Err(e) => error!("{e}"),
-                            _ => {}
+                if let Some(w) = self.worker.as_mut() {
+                    match self
+                        .render
+                        .update(w, &event, Duration::from_secs(1))
+                        .and(self.render.render(w))
+                    {
+                        Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
+                        Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
+                        Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
+                            event_loop.exit();
                         }
-                    });
+                        Err(e) => error!("{e}"),
+                        _ => {}
+                    }
                 }
             }
             WindowEvent::Occluded(_occluded) => {}
@@ -187,22 +185,20 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             )
             .unwrap();
 
-        if let Err(e) = block_on(async { self.worker_surface(w).await }) {
+        if let Err(e) = block_on(async { self.worker_init(w).await }) {
             error!("{e}");
             return;
         }
 
-        self.renders.iter_mut().for_each(|r| {
-            // Worker is presented always at this step
-            let worker = self.worker_surface.as_mut().unwrap();
-            if let Err(e) = r.init(worker) {
-                error!("{e}");
-            }
-        });
+        // Worker is presented always at this step
+        let worker = self.worker.as_mut().unwrap();
+        if let Err(e) = self.render.init(worker) {
+            error!("{e}");
+        }
     }
 }
 
-impl<'a> Runtime<'a> {
+impl<'a, R: RenderWorker + 'a> Runtime<'a, R> {
     pub fn new(size: (u32, u32)) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -220,93 +216,86 @@ impl<'a> Runtime<'a> {
             power_preference,
             limits,
             size,
-            worker_surface: None,
-            worker_textures: Vec::default(),
-            renders: Vec::default(),
+            worker: None,
+            render: R::new(),
         }
     }
 
-    pub fn render<RW: RenderWorker + 'a>(mut self) -> Self {
-        self.renders.push(Box::new(RW::new()));
-
-        self
-    }
-
     // Currently unused
-    #[allow(dead_code)]
-    async fn worker_texture(
-        mut self,
-        texture_path: String,
-        image_format: ImageFormat,
-    ) -> Result<Self, CoreError> {
-        let Self {
-            ref limits,
-            ref instance,
-            power_preference,
-            ref mut worker_textures,
-            ..
-        } = self;
+    // #[allow(dead_code)]
+    // async fn worker_texture(
+    //     mut self,
+    //     texture_path: String,
+    //     image_format: ImageFormat,
+    // ) -> Result<Self, CoreError> {
+    //     let Self {
+    //         ref limits,
+    //         ref instance,
+    //         power_preference,
+    //         ref mut worker_textures,
+    //         ..
+    //     } = self;
 
-        let size = if cfg!(target_arch = "wasm32") {
-            (
-                limits.max_texture_dimension_2d,
-                limits.max_texture_dimension_2d,
-            )
-        } else {
-            (self.size.0, self.size.1)
-        };
+    //     let size = if cfg!(target_arch = "wasm32") {
+    //         (
+    //             limits.max_texture_dimension_2d,
+    //             limits.max_texture_dimension_2d,
+    //         )
+    //     } else {
+    //         (self.size.0, self.size.1)
+    //     };
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-            .await
-            .ok_or(CoreError::RequestAdapter)?;
-        let adapter_info = adapter.get_info();
-        let adapter_features = adapter.features();
+    //     let adapter = instance
+    //         .request_adapter(&wgpu::RequestAdapterOptions {
+    //             power_preference,
+    //             compatible_surface: None,
+    //             force_fallback_adapter: false,
+    //         })
+    //         .await
+    //         .ok_or(CoreError::RequestAdapter)?;
+    //     let adapter_info = adapter.get_info();
+    //     let adapter_features = adapter.features();
 
-        debug!(
-            "
-Adapter: 
-    Info: {adapter_info:#?},
-    Features: {adapter_features:#?},
-    Limits: {limits:#?}"
-        );
+    //     debug!(
+    //          "
+    // Adapter:
+    //     Info: {adapter_info:#?},
+    //     Features: {adapter_features:#?},
+    //     Limits: {limits:#?}"
+    //     );
 
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: adapter_features,
-                    required_limits: limits.clone(),
-                    label: None,
-                },
-                None,
-            )
-            .await?;
+    //     let (device, queue) = adapter
+    //         .request_device(
+    //             &wgpu::DeviceDescriptor {
+    //                 required_features: adapter_features,
+    //                 required_limits: limits.clone(),
+    //                 label: None,
+    //             },
+    //             None,
+    //         )
+    //         .await?;
 
-        worker_textures.push(Worker::new(
-            size,
-            1.,
-            RuntimeKind::Texture(texture_path, image_format),
-            device,
-            queue,
-            limits.clone(),
-            None,
-            Context::new(),
-        )?);
+    //     worker_textures.push(Worker::new(
+    //         size,
+    //         1.,
+    //         RuntimeKind::Texture(texture_path, image_format),
+    //         device,
+    //         queue,
+    //         limits.clone(),
+    //         None,
+    //         Context::new(),
+    //     )?);
 
-        Ok(self)
-    }
+    //     Ok(self)
+    // }
 
     // Create only in winit context
-    async fn worker_surface(&mut self, window: Window) -> Result<(), CoreError> {
+    async fn worker_init(&mut self, window: Window) -> Result<(), CoreError> {
         let Self {
             limits,
             instance,
             power_preference,
-            worker_surface,
+            worker,
             ..
         } = self;
 
@@ -376,7 +365,7 @@ Adapter:
         };
         surface.configure(&device, &config);
 
-        *worker_surface = Some(Worker::new(
+        *worker = Some(Worker::new(
             size,
             1.,
             RuntimeKind::Winit(SurfaceProperties { config, surface }),

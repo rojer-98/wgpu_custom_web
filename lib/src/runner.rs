@@ -16,7 +16,7 @@ use custom_engine_core::runtime::Runtime;
 use crate::{
     application::foreign::UserEvent,
     config::{EngineConfig, LoadConfig},
-    workers::model::SimpleModelRender,
+    workers::{model::SimpleModelRender, simple::SimpleRender},
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -89,7 +89,7 @@ impl EngineRunner {
     pub async fn run(self) -> Result<()> {
         EventLoop::<UserEvent>::with_user_event()
             .build()?
-            .run_app(&mut Runtime::new((1600, 1200)).render::<SimpleModelRender>())?;
+            .run_app(&mut Runtime::<SimpleModelRender>::new((1600, 1200)))?;
 
         Ok(())
     }

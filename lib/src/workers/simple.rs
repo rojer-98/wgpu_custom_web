@@ -204,12 +204,7 @@ impl RenderWorker for SimpleRender {
                         .label("Some color attach")
                         .view(&view)
                         .ops(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
+                            load: wgpu::LoadOp::Load,
                             store: wgpu::StoreOp::Store,
                         }),
                 )
