@@ -16,7 +16,7 @@ use custom_engine_core::runtime::Runtime;
 use crate::{
     application::foreign::UserEvent,
     config::{EngineConfig, LoadConfig},
-    workers::{model::SimpleModelRender, simple::SimpleRender},
+    workers::model::SimpleModelRender,
 };
 
 #[cfg(target_arch = "wasm32")]

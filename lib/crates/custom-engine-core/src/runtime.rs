@@ -26,27 +26,16 @@ pub enum ImageFormat {
     Jpeg,
 }
 
-#[derive(Debug)]
-pub(crate) enum RuntimeKind<'a> {
-    Winit(SurfaceProperties<'a>),
-    Texture(String, ImageFormat),
-}
+//#[derive(Debug)]
+//pub(crate) enum RuntimeKind<'a> {
+//    Winit(SurfaceProperties<'a>),
+//    Texture(String, ImageFormat),
+//}
 
 #[derive(Debug)]
 pub(crate) struct SurfaceProperties<'a> {
     pub config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'a>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub(crate) enum IntoRuntime {
-    Window,
-    Texture {
-        path: String,
-        format: ImageFormat,
-        new_size: (u32, u32),
-    },
 }
 
 pub struct Runtime<'a, R: RenderWorker + 'a> {
@@ -216,78 +205,10 @@ impl<'a, R: RenderWorker + 'a> Runtime<'a, R> {
             power_preference,
             limits,
             size,
-            worker: None,
             render: R::new(),
+            worker: None,
         }
     }
-
-    // Currently unused
-    // #[allow(dead_code)]
-    // async fn worker_texture(
-    //     mut self,
-    //     texture_path: String,
-    //     image_format: ImageFormat,
-    // ) -> Result<Self, CoreError> {
-    //     let Self {
-    //         ref limits,
-    //         ref instance,
-    //         power_preference,
-    //         ref mut worker_textures,
-    //         ..
-    //     } = self;
-
-    //     let size = if cfg!(target_arch = "wasm32") {
-    //         (
-    //             limits.max_texture_dimension_2d,
-    //             limits.max_texture_dimension_2d,
-    //         )
-    //     } else {
-    //         (self.size.0, self.size.1)
-    //     };
-
-    //     let adapter = instance
-    //         .request_adapter(&wgpu::RequestAdapterOptions {
-    //             power_preference,
-    //             compatible_surface: None,
-    //             force_fallback_adapter: false,
-    //         })
-    //         .await
-    //         .ok_or(CoreError::RequestAdapter)?;
-    //     let adapter_info = adapter.get_info();
-    //     let adapter_features = adapter.features();
-
-    //     debug!(
-    //          "
-    // Adapter:
-    //     Info: {adapter_info:#?},
-    //     Features: {adapter_features:#?},
-    //     Limits: {limits:#?}"
-    //     );
-
-    //     let (device, queue) = adapter
-    //         .request_device(
-    //             &wgpu::DeviceDescriptor {
-    //                 required_features: adapter_features,
-    //                 required_limits: limits.clone(),
-    //                 label: None,
-    //             },
-    //             None,
-    //         )
-    //         .await?;
-
-    //     worker_textures.push(Worker::new(
-    //         size,
-    //         1.,
-    //         RuntimeKind::Texture(texture_path, image_format),
-    //         device,
-    //         queue,
-    //         limits.clone(),
-    //         None,
-    //         Context::new(),
-    //     )?);
-
-    //     Ok(self)
-    // }
 
     // Create only in winit context
     async fn worker_init(&mut self, window: Window) -> Result<(), CoreError> {
@@ -368,7 +289,7 @@ Adapter:
         *worker = Some(Worker::new(
             size,
             1.,
-            RuntimeKind::Winit(SurfaceProperties { config, surface }),
+            SurfaceProperties { config, surface },
             device,
             queue,
             limits.clone(),
@@ -378,29 +299,4 @@ Adapter:
 
         Ok(())
     }
-
-    //  fn reinit_worker(&self, into_runtime: IntoRuntime) -> Result<Worker<'a>, CoreError> {
-    //     let new_size = match into_runtime {
-    //         IntoRuntime::Window => {
-    //             self.worker.runtime_kind = RuntimeKind::Winit(
-    //                 self.configure_surface()
-    //                     .ok_or(CoreError::SurfaceNotConfigured)?,
-    //             );
-
-    //             self.size
-    //         }
-    //         IntoRuntime::Texture {
-    //             path,
-    //             format,
-    //             new_size,
-    //         } => {
-    //             worker.runtime_kind = RuntimeKind::Texture(path, format);
-    //             new_size
-    //         }
-    //     };
-
-    //     worker.init_with_size(new_size)?;
-
-    //     Ok(worker)
-    // }
 }

@@ -8,12 +8,11 @@ use crate::{
     errors::CoreError,
     model::Model,
     render_pass::RenderPass,
-    runtime::RuntimeKind,
     storage::Storages,
     texture::{CopyTextureParams, RenderTexture},
     traits::Builder,
     uniform::Uniforms,
-    worker::{View, Worker},
+    worker::{View, ViewTexture, Worker},
 };
 
 impl<'a> Worker<'a> {
@@ -52,18 +51,20 @@ impl<'a> Worker<'a> {
         if new_size.0 > 0 && new_size.1 > 0 {
             self.size = new_size;
 
-            match &mut self.runtime_kind {
-                RuntimeKind::Winit(s_p) => {
-                    s_p.config.width = new_size.0;
-                    s_p.config.height = new_size.1;
-                    s_p.surface.configure(&&self.device, &s_p.config);
-                }
-                RuntimeKind::Texture(_, _) => {
-                    if let Err(e) = self.init_runtime_texture() {
-                        panic!("{e}");
-                    }
-                }
-            }
+            self.surface_properties.config.width = new_size.0;
+            self.surface_properties.config.height = new_size.1;
+            self.surface_properties
+                .surface
+                .configure(&self.device, &self.surface_properties.config);
+
+            // match &mut self.runtime_kind {
+            //     RuntimeKind::Winit(s_p) => {}
+            //     RuntimeKind::Texture(_, _) => {
+            //         if let Err(e) = self.init_runtime_texture() {
+            //             panic!("{e}");
+            //         }
+            //     }
+            // }
         }
     }
 
@@ -74,9 +75,14 @@ impl<'a> Worker<'a> {
 
     #[inline]
     pub fn render(&self, render_pass: RenderPass<'_>) -> Result<(), CoreError> {
-        if let Some(View::Texture(t, b)) = self.view.as_ref() {
+        if let Some(View::Texture(ViewTexture {
+            buffer,
+            render_texture,
+            ..
+        })) = self.view.as_ref()
+        {
             render_pass
-                .copy_params(CopyTextureParams::new(b, t))
+                .copy_params(CopyTextureParams::new(buffer, render_texture))
                 .render(&self.queue)
         } else {
             render_pass.render(&self.queue)
@@ -239,18 +245,16 @@ impl<'a> Worker<'a> {
 
         match v {
             Some(View::Surface(s)) => s.present(),
-            Some(View::Texture(rt, b)) => {
-                if let RuntimeKind::Texture(path_to, kind) = &self.runtime_kind {
-                    let data = b.read_buffer_async(&self.device).await?;
-                    let i_b = ImageBuffer::<Rgba<u8>, _>::from_raw(self.size.0, self.size.1, data)
-                        .ok_or(CoreError::ImageBufferCreate)?;
-                    let save_path = format!("{path_to}.{kind}");
+            Some(View::Texture(t)) => {
+                let data = t.buffer.read_buffer_async(&self.device).await?;
+                let i_b = ImageBuffer::<Rgba<u8>, _>::from_raw(self.size.0, self.size.1, data)
+                    .ok_or(CoreError::ImageBufferCreate)?;
+                let save_path = format!("{}.{}", t.path_to_save.clone(), t.image_format);
 
-                    debug!("Save texture to {save_path}");
-                    i_b.save(save_path)?;
-                }
+                debug!("Save texture to {save_path}");
+                i_b.save(save_path)?;
 
-                self.view = Some(View::Texture(rt, b));
+                self.view = Some(View::Texture(t));
             }
             _ => {}
         }
@@ -274,6 +278,7 @@ impl<'a> Worker<'a> {
     }
 
     // Protected helpers
+    #[allow(dead_code)]
     pub(crate) fn init_with_size(&mut self, size: (u32, u32)) -> Result<(), CoreError> {
         self.size = size;
 
@@ -282,18 +287,14 @@ impl<'a> Worker<'a> {
 
     // Private helpers
     fn init(&mut self) -> Result<(), CoreError> {
-        self.view = Some(match &self.runtime_kind {
-            RuntimeKind::Winit(s_p) => View::Surface(s_p.surface.get_current_texture()?),
-            RuntimeKind::Texture(_, _) => {
-                let (t, b) = self.init_runtime_texture()?;
-
-                View::Texture(t, b)
-            }
-        });
+        self.view = Some(View::Surface(
+            self.surface_properties.surface.get_current_texture()?,
+        ));
 
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn init_runtime_texture(&mut self) -> Result<(RenderTexture, Buffer), CoreError> {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let aspect = wgpu::TextureAspect::All;
