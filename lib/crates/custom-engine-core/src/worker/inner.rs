@@ -7,7 +7,8 @@ use crate::{
     buffer::Buffer,
     errors::CoreError,
     model::Model,
-    render_pass::RenderPass,
+    render_pass::{self, RenderPass},
+    runtime::ImageFormat,
     storage::Storages,
     texture::{CopyTextureParams, RenderTexture},
     traits::Builder,
@@ -74,19 +75,31 @@ impl<'a> Worker<'a> {
     }
 
     #[inline]
-    pub fn render(&self, render_pass: RenderPass<'_>) -> Result<(), CoreError> {
-        if let Some(View::Texture(ViewTexture {
-            buffer,
+    pub fn render_surface(&self, render_pass: RenderPass<'_>) -> Result<(), CoreError> {
+        render_pass.render(&self.queue)
+    }
+
+    #[inline]
+    pub fn render_texture(
+        &mut self,
+        render_pass: RenderPass<'a>,
+        image_format: ImageFormat,
+        path_to_save: String,
+    ) -> Result<(), CoreError> {
+        let (render_texture, buffer) = self.init_runtime_texture()?;
+
+        render_pass
+            .copy_params(CopyTextureParams::new(&buffer, &render_texture))
+            .render(&self.queue)?;
+
+        self.view = Some(View::Texture(ViewTexture {
             render_texture,
-            ..
-        })) = self.view.as_ref()
-        {
-            render_pass
-                .copy_params(CopyTextureParams::new(buffer, render_texture))
-                .render(&self.queue)
-        } else {
-            render_pass.render(&self.queue)
-        }
+            image_format,
+            path_to_save,
+            buffer,
+        }));
+
+        Ok(())
     }
 
     #[inline]
@@ -232,14 +245,6 @@ impl<'a> Worker<'a> {
         Ok(self.view()?.texture_view())
     }
 
-    pub fn view(&mut self) -> Result<&View, CoreError> {
-        if self.view.is_none() {
-            self.init()?;
-        }
-
-        self.view.as_ref().ok_or(CoreError::NotInitView)
-    }
-
     pub async fn present(&mut self) -> Result<(), CoreError> {
         let v = self.view.take();
 
@@ -278,22 +283,13 @@ impl<'a> Worker<'a> {
     }
 
     // Protected helpers
-    #[allow(dead_code)]
-    pub(crate) fn init_with_size(&mut self, size: (u32, u32)) -> Result<(), CoreError> {
-        self.size = size;
+    //pub(crate) fn init_with_size(&mut self, size: (u32, u32)) -> Result<(), CoreError> {
+    //    self.size = size;
 
-        self.init()
-    }
+    //    self.init()
+    //}
 
     // Private helpers
-    fn init(&mut self) -> Result<(), CoreError> {
-        self.view = Some(View::Surface(
-            self.surface_properties.surface.get_current_texture()?,
-        ));
-
-        Ok(())
-    }
-
     #[allow(dead_code)]
     fn init_runtime_texture(&mut self) -> Result<(RenderTexture, Buffer), CoreError> {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -329,6 +325,16 @@ impl<'a> Worker<'a> {
         self.format = format;
 
         Ok((t, b))
+    }
+
+    fn view(&mut self) -> Result<&View, CoreError> {
+        if self.view.is_none() {
+            self.view = Some(View::Surface(
+                self.surface_properties.surface.get_current_texture()?,
+            ));
+        }
+
+        self.view.as_ref().ok_or(CoreError::NotInitView)
     }
 
     fn update_buffer_data<T: bytemuck::Pod + bytemuck::Zeroable>(

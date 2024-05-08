@@ -18,7 +18,7 @@ pub(crate) struct ViewTexture {
 }
 
 #[derive(Debug)]
-pub enum View {
+pub(crate) enum View {
     Surface(wgpu::SurfaceTexture),
     Texture(ViewTexture),
 }
