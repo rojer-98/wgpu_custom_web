@@ -7,7 +7,7 @@ use crate::{
     buffer::Buffer,
     errors::CoreError,
     model::Model,
-    render_pass::{self, RenderPass},
+    render_pass::RenderPass,
     runtime::ImageFormat,
     storage::Storages,
     texture::{CopyTextureParams, RenderTexture},
@@ -57,15 +57,6 @@ impl<'a> Worker<'a> {
             self.surface_properties
                 .surface
                 .configure(&self.device, &self.surface_properties.config);
-
-            // match &mut self.runtime_kind {
-            //     RuntimeKind::Winit(s_p) => {}
-            //     RuntimeKind::Texture(_, _) => {
-            //         if let Err(e) = self.init_runtime_texture() {
-            //             panic!("{e}");
-            //         }
-            //     }
-            // }
         }
     }
 
@@ -75,29 +66,19 @@ impl<'a> Worker<'a> {
     }
 
     #[inline]
-    pub fn render_surface(&self, render_pass: RenderPass<'_>) -> Result<(), CoreError> {
-        render_pass.render(&self.queue)
-    }
-
-    #[inline]
-    pub fn render_texture(
-        &mut self,
-        render_pass: RenderPass<'a>,
-        image_format: ImageFormat,
-        path_to_save: String,
-    ) -> Result<(), CoreError> {
-        let (render_texture, buffer) = self.init_runtime_texture()?;
-
-        render_pass
-            .copy_params(CopyTextureParams::new(&buffer, &render_texture))
-            .render(&self.queue)?;
-
-        self.view = Some(View::Texture(ViewTexture {
-            render_texture,
-            image_format,
-            path_to_save,
-            buffer,
-        }));
+    pub fn render(&self, render_pass: RenderPass<'a>) -> Result<(), CoreError> {
+        if let Some(view) = self.view.as_ref() {
+            match view {
+                View::Texture(ViewTexture {
+                    render_texture,
+                    buffer,
+                    ..
+                }) => render_pass
+                    .copy_params(CopyTextureParams::new(buffer, render_texture))
+                    .render(&self.queue)?,
+                View::Surface(_) => render_pass.render(&self.queue)?,
+            }
+        }
 
         Ok(())
     }
@@ -241,8 +222,30 @@ impl<'a> Worker<'a> {
         Ok(cast_data.to_vec())
     }
 
-    pub fn texture_view(&mut self) -> Result<wgpu::TextureView, CoreError> {
-        Ok(self.view()?.texture_view())
+    pub fn view_texture(
+        &mut self,
+        image_format: ImageFormat,
+        path_to_save: String,
+    ) -> Result<wgpu::TextureView, CoreError> {
+        let (render_texture, buffer) = self.init_runtime_texture()?;
+        self.view = Some(View::Texture(ViewTexture {
+            render_texture,
+            image_format,
+            path_to_save,
+            buffer,
+        }));
+
+        self.view()
+    }
+
+    pub fn view_surface(&mut self) -> Result<wgpu::TextureView, CoreError> {
+        if self.view.is_none() {
+            self.view = Some(View::Surface(
+                self.surface_properties.surface.get_current_texture()?,
+            ));
+        }
+
+        self.view()
     }
 
     pub async fn present(&mut self) -> Result<(), CoreError> {
@@ -290,7 +293,6 @@ impl<'a> Worker<'a> {
     //}
 
     // Private helpers
-    #[allow(dead_code)]
     fn init_runtime_texture(&mut self) -> Result<(RenderTexture, Buffer), CoreError> {
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let aspect = wgpu::TextureAspect::All;
@@ -327,14 +329,13 @@ impl<'a> Worker<'a> {
         Ok((t, b))
     }
 
-    fn view(&mut self) -> Result<&View, CoreError> {
-        if self.view.is_none() {
-            self.view = Some(View::Surface(
-                self.surface_properties.surface.get_current_texture()?,
-            ));
-        }
-
-        self.view.as_ref().ok_or(CoreError::NotInitView)
+    #[inline(always)]
+    fn view(&mut self) -> Result<wgpu::TextureView, CoreError> {
+        Ok(self
+            .view
+            .as_ref()
+            .ok_or(CoreError::NotInitView)?
+            .texture_view())
     }
 
     fn update_buffer_data<T: bytemuck::Pod + bytemuck::Zeroable>(

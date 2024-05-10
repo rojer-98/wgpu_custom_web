@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use custom_engine_core::{
     errors::CoreError,
-    render_pass::color_attachment::ColorAttachmentBuilder,
-    render_pass::RenderStage,
+    render_pass::{color_attachment::ColorAttachmentBuilder, RenderStage},
+    runtime::ImageFormat,
     traits::{Builder, RenderWorker, VertexLayout},
     worker::Worker,
 };
@@ -127,7 +127,7 @@ impl RenderWorker for SimpleRenderToTexture {
         let pipeline = w.get_pipeline_ref(*p_id)?;
         let vb = w.get_buffer_ref(*vb_id)?;
 
-        let view = w.texture_view()?;
+        let view = w.view_texture(ImageFormat::Png, "render_to_texture".to_string())?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
             0,
             RenderStage::new(&pipeline)

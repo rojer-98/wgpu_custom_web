@@ -190,7 +190,7 @@ impl RenderWorker for SimpleRenderTexture {
 
         let bg_t = rt.bind_group()?;
 
-        let view = w.texture_view()?;
+        let view = w.view_surface()?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
             0,
             RenderStage::new(&pipeline)

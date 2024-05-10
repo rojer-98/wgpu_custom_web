@@ -310,7 +310,7 @@ impl RenderWorker for SimpleModelRender {
             .build()?;
         let d_t_view = d_t.view;
 
-        let view = w.texture_view()?;
+        let view = w.view_surface()?;
         let r_p = w
             .render_pass()
             .label("Render Pass")

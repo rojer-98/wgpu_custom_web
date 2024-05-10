@@ -195,7 +195,7 @@ impl RenderWorker for SimpleRender {
         let vb = w.get_buffer_ref(*vb_id)?;
         let c = w.get_uniform_ref(*c_id)?;
 
-        let view = w.texture_view()?;
+        let view = w.view_surface()?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
             0,
             RenderStage::new(&pipeline)
