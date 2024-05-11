@@ -64,7 +64,7 @@ pub trait OnEvent {
     fn on_event(&self);
 }
 
-pub trait EventHandler<R: RenderWorker> {
+pub trait EventHandler<R: RenderWorker>: Default {
     fn on_resize<S>(
         &mut self,
         _: &mut R,
@@ -73,11 +73,9 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_focused(&mut self, _: &mut R, _: &mut Worker, _: bool) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_scale_factor_changed(
         &mut self,
         _: &mut R,
@@ -87,15 +85,12 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_theme(&mut self, _: &mut R, _: &mut Worker, _: Theme) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_occluded(&mut self, _: &mut R, _: &mut Worker, _: bool) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_modifiers_changed(
         &mut self,
         _: &mut R,
@@ -104,7 +99,6 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_mouse_wheel(
         &mut self,
         _: &mut R,
@@ -115,7 +109,6 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_keyboard_input(
         &mut self,
         _: &mut R,
@@ -126,7 +119,6 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_mouse_input(
         &mut self,
         _: &mut R,
@@ -137,11 +129,9 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_cursor_left(&mut self, _: &mut R, _: &mut Worker, _: DeviceId) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_cursor_moved<S>(
         &mut self,
         _: &mut R,
@@ -151,11 +141,9 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_ime(&mut self, _: &mut R, _: &mut Worker, _: Ime) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_pinch_gesture(
         &mut self,
         _: &mut R,
@@ -166,18 +154,16 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
-    fn on_rotation_gesture(
+    fn on_rotation_gesture<S>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
         _: DeviceId,
-        _: f64,
+        _: S,
         _: TouchPhase,
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_pan_gesture<S>(
         &mut self,
         _: &mut R,
@@ -188,7 +174,6 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_double_tap_gesture(
         &mut self,
         _: &mut R,
@@ -197,22 +182,19 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_touchpad_pressure<S>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
         _: DeviceId,
-        _: f32,
+        _: S,
         _: i64,
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_hovered_file_cancelled(&mut self, _: &mut R, _: &mut Worker) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_cursor_entered(
         &mut self,
         _: &mut R,
@@ -221,7 +203,6 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_axis_motion(
         &mut self,
         _: &mut R,
@@ -232,23 +213,18 @@ pub trait EventHandler<R: RenderWorker> {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_dropped_file(&mut self, _: &mut R, _: &mut Worker, _: PathBuf) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_hovered_file(&mut self, _: &mut R, _: &mut Worker, _: PathBuf) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_destroyed(&mut self, _: &mut R, _: &mut Worker) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_touch(&mut self, _: &mut R, _: &mut Worker, _: Touch) -> Result<(), CoreError> {
         Ok(())
     }
-
     fn on_moved<S>(
         &mut self,
         _: &mut R,

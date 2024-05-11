@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{str::ParseBoolError, time::Duration};
 
 use derive_more::Display;
 use log::{debug, error};
@@ -14,7 +14,7 @@ use winit::{
 use crate::{
     context::Context,
     errors::CoreError,
-    traits::{OnEvent, RenderWorker},
+    traits::{EventHandler, OnEvent, RenderWorker},
     worker::Worker,
 };
 
@@ -38,7 +38,7 @@ pub(crate) struct SurfaceProperties<'a> {
     pub surface: wgpu::Surface<'a>,
 }
 
-pub struct Runtime<'a, R: RenderWorker + 'a> {
+pub struct Runtime<'a, R: RenderWorker + 'a, H: EventHandler<R>> {
     pub(crate) size: (u32, u32),
     pub(crate) limits: wgpu::Limits,
     pub(crate) instance: wgpu::Instance,
@@ -47,6 +47,7 @@ pub struct Runtime<'a, R: RenderWorker + 'a> {
     //pub state: RuntimeState,
     worker: Option<Worker<'a>>,
     render: R,
+    handler: H,
 }
 
 /*
@@ -84,7 +85,9 @@ Event::WindowEvent {
 
 */
 
-impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a> ApplicationHandler<E> for Runtime<'a, R> {
+impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> ApplicationHandler<E>
+    for Runtime<'a, R, H>
+{
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: E) {
         event.on_event()
     }
@@ -95,73 +98,239 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a> ApplicationHandler<E> for R
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        let w = self.worker.as_mut().unwrap();
+
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
-                if let Some(w) = self.worker.as_mut() {
-                    w.resize_by_size((width, height));
+                w.resize_by_size((width, height));
 
-                    if let Err(e) = self.render.resize(w) {
-                        error!("{e}");
-                    }
+                if let Err(e) = self.render.resize(w) {
+                    error!("{e}");
                 }
             }
-            WindowEvent::Focused(_focused) => {}
+            WindowEvent::Focused(focused) => {
+                if let Err(e) = self.handler.on_focused(
+                    &mut self.render,
+                    self.worker.as_mut().unwrap(),
+                    focused,
+                ) {
+                    error!("{e}");
+                }
+            }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(w) = self.worker.as_mut() {
-                    w.resize_by_scale(scale_factor);
+                w.resize_by_scale(scale_factor);
 
-                    if let Err(e) = self.render.resize(w) {
-                        error!("{e}");
-                    }
+                if let Err(e) = self.render.resize(w) {
+                    error!("{e}");
                 }
             }
-            WindowEvent::ThemeChanged(_theme) => {}
+            WindowEvent::ThemeChanged(theme) => {
+                if let Err(e) = self.handler.on_theme(&mut self.render, w, theme) {
+                    error!("{e}");
+                }
+            }
             WindowEvent::RedrawRequested => {
-                if let Some(w) = self.worker.as_mut() {
-                    match self
-                        .render
-                        .update(w, &event, Duration::from_secs(1))
-                        .and(self.render.render(w))
-                    {
-                        Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
-                        Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
-                        Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
-                            event_loop.exit();
-                        }
-                        Err(e) => error!("{e}"),
-                        _ => {}
+                match self
+                    .render
+                    .update(w, &event, Duration::from_secs(1))
+                    .and(self.render.render(w))
+                {
+                    Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
+                    Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
+                    Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
+                        event_loop.exit();
                     }
+                    Err(e) => error!("{e}"),
+                    _ => {}
                 }
             }
-            WindowEvent::Occluded(_occluded) => {}
+            WindowEvent::Occluded(occluded) => {
+                if let Err(e) = self.handler.on_occluded(&mut self.render, w, occluded) {
+                    error!("{e}");
+                }
+            }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::ModifiersChanged(_modifiers) => {}
-            WindowEvent::MouseWheel { .. } => {}
+            WindowEvent::ModifiersChanged(modifiers) => {
+                if let Err(e) = self
+                    .handler
+                    .on_modifiers_changed(&mut self.render, w, modifiers)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::MouseWheel {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_mouse_wheel(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
             WindowEvent::KeyboardInput {
-                is_synthetic: false,
-                ..
-            } => {}
-            WindowEvent::MouseInput { .. } => {}
-            WindowEvent::CursorLeft { .. } => {}
-            WindowEvent::CursorMoved { .. } => {}
-            WindowEvent::ActivationTokenDone { .. } => {}
-            WindowEvent::Ime(_event) => {}
-            WindowEvent::PinchGesture { .. } => {}
-            WindowEvent::RotationGesture { .. } => {}
-            WindowEvent::PanGesture { .. } => {}
-            WindowEvent::DoubleTapGesture { .. } => {}
-            WindowEvent::TouchpadPressure { .. }
-            | WindowEvent::HoveredFileCancelled
-            | WindowEvent::KeyboardInput { .. }
-            | WindowEvent::CursorEntered { .. }
-            | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DroppedFile(_)
-            | WindowEvent::HoveredFile(_)
-            | WindowEvent::Destroyed
-            | WindowEvent::Touch(_)
-            | WindowEvent::Moved(_) => (),
+                is_synthetic,
+                device_id,
+                event,
+            } => {
+                if let Err(e) = self.handler.on_keyboard_input(
+                    &mut self.render,
+                    w,
+                    device_id,
+                    event,
+                    is_synthetic,
+                ) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_mouse_input(&mut self.render, w, device_id, state, button)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorLeft { device_id } => {
+                if let Err(e) = self.handler.on_cursor_left(&mut self.render, w, device_id) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_cursor_moved(&mut self.render, w, device_id, position)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Ime(event) => {
+                if let Err(e) = self.handler.on_ime(&mut self.render, w, event) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::PinchGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_pinch_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::RotationGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_rotation_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::PanGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_pan_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::DoubleTapGesture { device_id } => {
+                if let Err(e) = self
+                    .handler
+                    .on_double_tap_gesture(&mut self.render, w, device_id)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::TouchpadPressure {
+                device_id,
+                pressure,
+                stage,
+            } => {
+                if let Err(e) = self.handler.on_touchpad_pressure(
+                    &mut self.render,
+                    w,
+                    device_id,
+                    pressure,
+                    stage,
+                ) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::HoveredFileCancelled => {
+                if let Err(e) = self.handler.on_hovered_file_cancelled(&mut self.render, w) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorEntered { device_id } => {
+                if let Err(e) = self
+                    .handler
+                    .on_cursor_entered(&mut self.render, w, device_id)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::AxisMotion {
+                device_id,
+                axis,
+                value,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_axis_motion(&mut self.render, w, device_id, axis, value)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::DroppedFile(pb) => {
+                if let Err(e) = self.handler.on_dropped_file(&mut self.render, w, pb) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::HoveredFile(pb) => {
+                if let Err(e) = self.handler.on_hovered_file(&mut self.render, w, pb) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Destroyed => {
+                if let Err(e) = self.handler.on_destroyed(&mut self.render, w) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Touch(t) => {
+                if let Err(e) = self.handler.on_touch(&mut self.render, w, t) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Moved(pp) => {
+                if let Err(e) = self.handler.on_moved(&mut self.render, w, pp) {
+                    error!("{e}");
+                }
+            }
+
+            WindowEvent::ActivationTokenDone { .. } => (),
         }
     }
 
@@ -187,7 +356,7 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a> ApplicationHandler<E> for R
     }
 }
 
-impl<'a, R: RenderWorker + 'a> Runtime<'a, R> {
+impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
     pub fn new(size: (u32, u32)) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -207,6 +376,7 @@ impl<'a, R: RenderWorker + 'a> Runtime<'a, R> {
             size,
             render: R::new(),
             worker: None,
+            handler: H::default(),
         }
     }
 
