@@ -14,7 +14,7 @@ use winit::{
 use crate::{
     context::Context,
     errors::CoreError,
-    traits::{OnEvent, RenderWorker},
+    traits::{EventHandler, OnEvent, RenderWorker},
     worker::Worker,
 };
 
@@ -27,70 +27,25 @@ pub enum ImageFormat {
 }
 
 #[derive(Debug)]
-pub enum IntoRuntime {
-    Window,
-    Texture {
-        path: String,
-        format: ImageFormat,
-        new_size: (u32, u32),
-    },
-}
-
-#[derive(Debug)]
-pub(crate) enum RuntimeKind<'a> {
-    Winit(SurfaceProperties<'a>),
-    Texture(String, ImageFormat),
-}
-
-#[derive(Debug)]
 pub(crate) struct SurfaceProperties<'a> {
     pub config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'a>,
 }
 
-pub struct Runtime<'a> {
-    pub size: (u32, u32),
-    //pub state: RuntimeState,
+pub struct Runtime<'a, R: RenderWorker + 'a, H: EventHandler<R>> {
+    pub(crate) size: (u32, u32),
+    pub(crate) limits: wgpu::Limits,
+    pub(crate) instance: wgpu::Instance,
+    pub(crate) power_preference: wgpu::PowerPreference,
+
     worker: Option<Worker<'a>>,
-    renders: Vec<Box<dyn RenderWorker + 'a>>,
+    render: R,
+    handler: H,
 }
 
-/*
-Event::WindowEvent {
-    ref event,
-    window_id,
-} if window_id == window.id() => {
-
-    match event {
-
-        // Mouse
-        // WindowEvent::CursorMoved { position, .. } => {
-        //     if app_state.click_state.is_pressed() {
-        //         let diff = (
-        //             position.x - app_state.cursor_position.x,
-        //             position.y - app_state.cursor_position.y,
-        //         );
-        //         r.move_to(&mut worker_surface, diff).unwrap();
-        //     }
-
-        //     app_state.cursor_position = *position;
-        // }
-        // WindowEvent::MouseInput { state, .. } => {
-        //     if state.is_pressed() {
-        //         app_state.clicked();
-
-        //         r.click(&mut worker_surface, &app_state).unwrap();
-        //     }
-
-        //     app_state.click_state = *state;
-        // }
-        _ => {}
-    }
-}
-
-*/
-
-impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
+impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> ApplicationHandler<E>
+    for Runtime<'a, R, H>
+{
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: E) {
         event.on_event()
     }
@@ -101,84 +56,238 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        let w = self.worker.as_mut().unwrap();
+
+        match self
+            .render
+            .update(w, &event, Duration::from_secs(1))
+            .and(self.render.render(w))
+        {
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
+                event_loop.exit();
+            }
+            Err(e) => error!("{e}"),
+            _ => {}
+        }
+
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
-                if let Some(w) = self.worker.as_mut() {
-                    w.resize_by_size((width, height));
-                    self.renders.iter_mut().for_each(|r| {
-                        if let Err(e) = r.resize(w) {
-                            error!("{e}");
-                        }
-                    });
-                }
-            }
-            WindowEvent::Focused(_focused) => {}
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(w) = self.worker.as_mut() {
-                    w.resize_by_scale(scale_factor);
-                    self.renders.iter_mut().for_each(|r| {
-                        if let Err(e) = r.resize(w) {
-                            error!("{e}");
-                        }
-                    });
-                }
-            }
-            WindowEvent::ThemeChanged(_theme) => {}
-            WindowEvent::RedrawRequested => {
-                if let Some(w) = self.worker.as_mut() {
-                    self.renders.iter_mut().for_each(|r| {
-                        match r.update(w, &event, Duration::from_secs(1)).and(r.render(w)) {
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
-                            Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
-                                event_loop.exit();
-                            }
-                            Err(e) => error!("{e}"),
-                            _ => {}
-                        }
-                    });
+                w.resize_by_size((width, height));
 
-                    //window.request_redraw();
+                if let Err(e) = self.render.resize(w) {
+                    error!("{e}");
                 }
             }
-            WindowEvent::Occluded(_occluded) => {}
+            WindowEvent::Focused(focused) => {
+                if let Err(e) = self.handler.on_focused(
+                    &mut self.render,
+                    self.worker.as_mut().unwrap(),
+                    focused,
+                ) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                w.resize_by_scale(scale_factor);
+
+                if let Err(e) = self.render.resize(w) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::ThemeChanged(theme) => {
+                if let Err(e) = self.handler.on_theme(&mut self.render, w, theme) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Occluded(occluded) => {
+                if let Err(e) = self.handler.on_occluded(&mut self.render, w, occluded) {
+                    error!("{e}");
+                }
+            }
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
-            WindowEvent::ModifiersChanged(_modifiers) => {}
-            WindowEvent::MouseWheel { .. } => {}
-            WindowEvent::KeyboardInput {
-                is_synthetic: false,
-                ..
-            } => {}
-            WindowEvent::MouseInput { .. } => {}
-            WindowEvent::CursorLeft { .. } => {}
-            WindowEvent::CursorMoved { .. } => {}
-            WindowEvent::ActivationTokenDone { .. } => {
-                //   let w = event_loop
-                //      .create_window(
-                //          Window::default_attributes()
-                //      .unwrap();
-
-                //  if let Err(e) = block_on(async { self.worker_surface(w).await }) {
-                //      error!("{e}");
-                //  }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                if let Err(e) = self
+                    .handler
+                    .on_modifiers_changed(&mut self.render, w, modifiers)
+                {
+                    error!("{e}");
+                }
             }
-            WindowEvent::Ime(_event) => {}
-            WindowEvent::PinchGesture { .. } => {}
-            WindowEvent::RotationGesture { .. } => {}
-            WindowEvent::PanGesture { .. } => {}
-            WindowEvent::DoubleTapGesture { .. } => {}
-            WindowEvent::TouchpadPressure { .. }
-            | WindowEvent::HoveredFileCancelled
-            | WindowEvent::KeyboardInput { .. }
-            | WindowEvent::CursorEntered { .. }
-            | WindowEvent::AxisMotion { .. }
-            | WindowEvent::DroppedFile(_)
-            | WindowEvent::HoveredFile(_)
-            | WindowEvent::Destroyed
-            | WindowEvent::Touch(_)
-            | WindowEvent::Moved(_) => (),
+            WindowEvent::MouseWheel {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_mouse_wheel(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::KeyboardInput {
+                is_synthetic,
+                device_id,
+                event,
+            } => {
+                if let Err(e) = self.handler.on_keyboard_input(
+                    &mut self.render,
+                    w,
+                    device_id,
+                    event,
+                    is_synthetic,
+                ) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_mouse_input(&mut self.render, w, device_id, state, button)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorLeft { device_id } => {
+                if let Err(e) = self.handler.on_cursor_left(&mut self.render, w, device_id) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_cursor_moved(&mut self.render, w, device_id, position)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Ime(event) => {
+                if let Err(e) = self.handler.on_ime(&mut self.render, w, event) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::PinchGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_pinch_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::RotationGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_rotation_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::PanGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_pan_gesture(&mut self.render, w, device_id, delta, phase)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::DoubleTapGesture { device_id } => {
+                if let Err(e) = self
+                    .handler
+                    .on_double_tap_gesture(&mut self.render, w, device_id)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::TouchpadPressure {
+                device_id,
+                pressure,
+                stage,
+            } => {
+                if let Err(e) = self.handler.on_touchpad_pressure(
+                    &mut self.render,
+                    w,
+                    device_id,
+                    pressure,
+                    stage,
+                ) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::HoveredFileCancelled => {
+                if let Err(e) = self.handler.on_hovered_file_cancelled(&mut self.render, w) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::CursorEntered { device_id } => {
+                if let Err(e) = self
+                    .handler
+                    .on_cursor_entered(&mut self.render, w, device_id)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::AxisMotion {
+                device_id,
+                axis,
+                value,
+            } => {
+                if let Err(e) =
+                    self.handler
+                        .on_axis_motion(&mut self.render, w, device_id, axis, value)
+                {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::DroppedFile(pb) => {
+                if let Err(e) = self.handler.on_dropped_file(&mut self.render, w, pb) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::HoveredFile(pb) => {
+                if let Err(e) = self.handler.on_hovered_file(&mut self.render, w, pb) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Destroyed => {
+                if let Err(e) = self.handler.on_destroyed(&mut self.render, w) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Touch(t) => {
+                if let Err(e) = self.handler.on_touch(&mut self.render, w, t) {
+                    error!("{e}");
+                }
+            }
+            WindowEvent::Moved(pp) => {
+                if let Err(e) = self.handler.on_moved(&mut self.render, w, pp) {
+                    error!("{e}");
+                }
+            }
+
+            WindowEvent::ActivationTokenDone { .. } | WindowEvent::RedrawRequested => (),
         }
     }
 
@@ -191,43 +300,52 @@ impl<'a, E: OnEvent + 'static> ApplicationHandler<E> for Runtime<'a> {
             )
             .unwrap();
 
-        if let Err(e) = block_on(async { self.worker_surface(w).await }) {
+        if let Err(e) = block_on(async { self.worker_init(w).await }) {
             error!("{e}");
             return;
         }
 
-        self.renders.iter_mut().for_each(|r| {
-            // Worker is presented always at this step
-            let worker = self.worker.as_mut().unwrap();
-            if let Err(e) = r.init(worker) {
-                error!("{e}");
-            }
-        });
+        // Worker is presented always at this step
+        let worker = self.worker.as_mut().unwrap();
+        if let Err(e) = self.render.init(worker) {
+            error!("{e}");
+        }
     }
 }
 
-impl<'a> Runtime<'a> {
+impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
     pub fn new(size: (u32, u32)) -> Self {
-        Self {
-            size,
-            worker: None,
-            renders: Vec::default(),
-        }
-    }
-
-    pub fn add_render<RW: RenderWorker + 'a>(mut self) -> Self {
-        self.renders.push(Box::new(RW::new()));
-
-        self
-    }
-
-    async fn worker_surface(&mut self, window: Window) -> Result<(), CoreError> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
         let power_preference = wgpu::PowerPreference::default();
         let limits = if cfg!(target_arch = "wasm32") {
             wgpu::Limits::downlevel_webgl2_defaults()
         } else {
             wgpu::Limits::default()
         };
+
+        Self {
+            instance,
+            power_preference,
+            limits,
+            size,
+            render: R::new(),
+            handler: H::default(),
+            worker: None,
+        }
+    }
+
+    // Create only in winit context
+    async fn worker_init(&mut self, window: Window) -> Result<(), CoreError> {
+        let Self {
+            limits,
+            instance,
+            power_preference,
+            worker,
+            ..
+        } = self;
 
         let size = if cfg!(target_arch = "wasm32") {
             (
@@ -237,18 +355,17 @@ impl<'a> Runtime<'a> {
         } else {
             let i_s = window.inner_size();
 
-            (i_s.width, i_s.height)
+            if i_s.height == 0 || i_s.width == 0 {
+                self.size
+            } else {
+                (i_s.width, i_s.height)
+            }
         };
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
 
         let surface = instance.create_surface(window)?;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference,
+                power_preference: *power_preference,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
@@ -296,13 +413,13 @@ Adapter:
         };
         surface.configure(&device, &config);
 
-        self.worker = Some(Worker::new(
+        *worker = Some(Worker::new(
             size,
             1.,
-            RuntimeKind::Winit(SurfaceProperties { config, surface }),
+            SurfaceProperties { config, surface },
             device,
             queue,
-            limits,
+            limits.clone(),
             None,
             Context::new(),
         )?);

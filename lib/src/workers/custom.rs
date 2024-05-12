@@ -165,7 +165,7 @@ impl RenderWorker for SimpleCustomRender {
         let vb = w.get_buffer_ref(*vb_id)?;
         let s = w.get_storage_ref(*s_id)?;
 
-        let view = w.texture_view()?;
+        let view = w.view_surface()?;
         let r_p = w.render_pass().label("Render Pass").render_stage(
             0,
             RenderStage::new(&pipeline)
