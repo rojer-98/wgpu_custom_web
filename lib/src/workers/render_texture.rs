@@ -10,7 +10,6 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -215,7 +214,7 @@ impl RenderWorker for SimpleRenderTexture {
         );
 
         w.render(r_p)?;
-        block_on(async { w.present().await })?;
+        w.present()?;
 
         Ok(())
     }

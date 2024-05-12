@@ -21,6 +21,7 @@ pub use texture::*;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
+use pollster::block_on;
 
 use custom_engine_utils::get_data;
 
@@ -33,31 +34,33 @@ pub struct GltfFile {
 }
 
 impl GltfFile {
-    pub async fn new(file_name: &str) -> Result<Self> {
-        let (inner, buffers, images) = if cfg!(target_arch = "wasm32") {
-            let slice = get_data(file_name)
-                .await
-                .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
-            gltf::import_slice(slice)?
-        } else {
-            gltf::import(file_name)?
-        };
+    pub fn new(file_name: &str) -> Result<Self> {
+        block_on(async {
+            let (inner, buffers, images) = if cfg!(target_arch = "wasm32") {
+                let slice = get_data(file_name)
+                    .await
+                    .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
+                gltf::import_slice(slice)?
+            } else {
+                gltf::import(file_name)?
+            };
 
-        let doc = Document {
-            inner,
-            buffers,
-            images,
-        };
-        let base_path = Path::new(file_name);
-        let name = base_path
-            .file_name()
-            .ok_or(anyhow!("File name is not available"))?
-            .to_str()
-            .unwrap()
-            .to_string();
-        let root = Root::new(&doc, base_path).await;
+            let doc = Document {
+                inner,
+                buffers,
+                images,
+            };
+            let base_path = Path::new(file_name);
+            let name = base_path
+                .file_name()
+                .ok_or(anyhow!("File name is not available"))?
+                .to_str()
+                .unwrap()
+                .to_string();
+            let root = Root::new(&doc, base_path).await;
 
-        Ok(Self { name, root, doc })
+            Ok(Self { name, root, doc })
+        })
     }
 
     pub fn scene(&mut self, scene_index: usize) -> Result<Scene> {

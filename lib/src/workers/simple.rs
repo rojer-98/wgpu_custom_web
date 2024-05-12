@@ -10,7 +10,6 @@ use custom_engine_core::{
     uniform::UniformDescription,
     worker::Worker,
 };
-use pollster::block_on;
 
 use crate::{
     application::AppState,
@@ -215,7 +214,7 @@ impl RenderWorker for SimpleRender {
         );
 
         w.render(r_p)?;
-        block_on(async { w.present().await })?;
+        w.present()?;
 
         if self.counter < 4 {
             self.counter += 1;

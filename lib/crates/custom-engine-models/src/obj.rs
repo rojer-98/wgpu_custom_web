@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use log::{error, info};
+use pollster::block_on;
 use tobj::{LoadOptions, Material, Model};
 
 use custom_engine_utils::get_data;
@@ -21,46 +22,48 @@ pub struct FileTextures {
 }
 
 impl FileTextures {
-    pub async fn new(current_path: &PathBuf, m: &Material) -> Self {
-        let dissolve_texture = if let Some(t) = m.dissolve_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
-        let normal_texture = if let Some(t) = m.normal_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
-        let shininess_texture = if let Some(t) = m.shininess_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
-        let specular_texture = if let Some(t) = m.specular_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
-        let diffuse_texture = if let Some(t) = m.diffuse_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
-        let ambient_texture = if let Some(t) = m.ambient_texture.as_ref() {
-            Self::get_texture_data(current_path, t).await
-        } else {
-            None
-        };
+    pub fn new(current_path: &PathBuf, m: &Material) -> Self {
+        block_on(async {
+            let dissolve_texture = if let Some(t) = m.dissolve_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
+            let normal_texture = if let Some(t) = m.normal_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
+            let shininess_texture = if let Some(t) = m.shininess_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
+            let specular_texture = if let Some(t) = m.specular_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
+            let diffuse_texture = if let Some(t) = m.diffuse_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
+            let ambient_texture = if let Some(t) = m.ambient_texture.as_ref() {
+                Self::get_texture_data(current_path, t).await
+            } else {
+                None
+            };
 
-        FileTextures {
-            dissolve_texture,
-            normal_texture,
-            shininess_texture,
-            specular_texture,
-            diffuse_texture,
-            ambient_texture,
-        }
+            FileTextures {
+                dissolve_texture,
+                normal_texture,
+                shininess_texture,
+                specular_texture,
+                diffuse_texture,
+                ambient_texture,
+            }
+        })
     }
 
     async fn get_texture_data(current_path: &PathBuf, t: &str) -> Option<Vec<u8>> {
@@ -88,66 +91,68 @@ pub struct ObjFile {
 }
 
 impl ObjFile {
-    pub async fn new(file_name: &str) -> Result<Self> {
-        let obj_data = get_data(file_name)
-            .await
-            .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
-        let mut obj_reader = BufReader::new(Cursor::new(obj_data));
+    pub fn new(file_name: &str) -> Result<Self> {
+        block_on(async {
+            let obj_data = get_data(file_name)
+                .await
+                .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
+            let mut obj_reader = BufReader::new(Cursor::new(obj_data));
 
-        let (models, materials) = {
+            let (models, materials) = {
+                let mut current_path = PathBuf::from(file_name);
+                current_path.pop();
+
+                let (mdls, mat_res) = tobj::load_obj_buf_async(
+                    &mut obj_reader,
+                    &LoadOptions {
+                        single_index: true,
+                        triangulate: true,
+                        ..Default::default()
+                    },
+                    |p| async {
+                        let mut current_path = current_path.clone();
+                        current_path.push(p);
+
+                        let mtl_data = get_data(current_path.to_str().unwrap()).await.unwrap();
+
+                        return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
+                    },
+                )
+                .await?;
+
+                if let Err(e) = mat_res {
+                    error!("{e}")
+                }
+
+                (mdls, mat_res?)
+            };
+
             let mut current_path = PathBuf::from(file_name);
             current_path.pop();
 
-            let (mdls, mat_res) = tobj::load_obj_buf_async(
-                &mut obj_reader,
-                &LoadOptions {
-                    single_index: true,
-                    triangulate: true,
-                    ..Default::default()
-                },
-                |p| async {
-                    let mut current_path = current_path.clone();
-                    current_path.push(p);
+            let models = models.into_iter().enumerate().collect::<HashMap<_, _>>();
 
-                    let mtl_data = get_data(current_path.to_str().unwrap()).await.unwrap();
-
-                    return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
-                },
-            )
-            .await?;
-
-            if let Err(e) = mat_res {
-                error!("{e}")
+            let mut ms = HashMap::new();
+            for (i, m) in materials.into_iter().enumerate() {
+                ms.insert(
+                    i,
+                    LoadedMaterial {
+                        files: FileTextures::new(&current_path, &m),
+                        material: m,
+                    },
+                );
             }
 
-            (mdls, mat_res?)
-        };
-
-        let mut current_path = PathBuf::from(file_name);
-        current_path.pop();
-
-        let models = models.into_iter().enumerate().collect::<HashMap<_, _>>();
-
-        let mut ms = HashMap::new();
-        for (i, m) in materials.into_iter().enumerate() {
-            ms.insert(
-                i,
-                LoadedMaterial {
-                    files: FileTextures::new(&current_path, &m).await,
-                    material: m,
-                },
-            );
-        }
-
-        Ok(Self {
-            models,
-            materials: ms,
-            name: current_path
-                .file_name()
-                .ok_or(anyhow!("Filename is not found"))?
-                .to_str()
-                .unwrap()
-                .to_string(),
+            Ok(Self {
+                models,
+                materials: ms,
+                name: current_path
+                    .file_name()
+                    .ok_or(anyhow!("Filename is not found"))?
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            })
         })
     }
 
