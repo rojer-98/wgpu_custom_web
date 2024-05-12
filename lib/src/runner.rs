@@ -86,12 +86,14 @@ impl EngineRunner {
         Ok(self)
     }
 
-    pub async fn run(self) -> Result<()> {
+    pub fn run(self) -> Result<()> {
         let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
 
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
-                EVENT_LOOP_PROXY = Some(event_loop.create_proxy());
+                unsafe {
+                    EVENT_LOOP_PROXY = Some(event_loop.create_proxy());
+                }
             }
         }
 

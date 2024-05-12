@@ -8,13 +8,12 @@ mod workers;
 use runner::EngineRunner;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn run() {
+pub fn run() {
     EngineRunner::new(include_str!("../assets/config.toml"))
         .expect("Init conifg error: ")
         .logger()
         .expect("Init logger error: ")
         .run()
-        .await
         .expect("Render loop error: ");
 }
 
@@ -39,6 +38,5 @@ pub async fn run() {
         .logger()
         .expect("Init logger error: ")
         .run()
-        .await
         .expect("Render loop error: ");
 }
