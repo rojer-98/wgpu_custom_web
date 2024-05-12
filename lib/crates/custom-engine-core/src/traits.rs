@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::{ops::Sub, path::PathBuf, time::Duration};
 
 use crate::{errors::CoreError, worker::Worker};
 
@@ -65,7 +65,7 @@ pub trait OnEvent {
 }
 
 pub trait EventHandler<R: RenderWorker>: Default {
-    fn on_resize<S>(
+    fn on_resize<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
@@ -132,7 +132,7 @@ pub trait EventHandler<R: RenderWorker>: Default {
     fn on_cursor_left(&mut self, _: &mut R, _: &mut Worker, _: DeviceId) -> Result<(), CoreError> {
         Ok(())
     }
-    fn on_cursor_moved<S>(
+    fn on_cursor_moved<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
@@ -154,7 +154,7 @@ pub trait EventHandler<R: RenderWorker>: Default {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-    fn on_rotation_gesture<S>(
+    fn on_rotation_gesture<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
@@ -164,7 +164,7 @@ pub trait EventHandler<R: RenderWorker>: Default {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-    fn on_pan_gesture<S>(
+    fn on_pan_gesture<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
@@ -182,7 +182,7 @@ pub trait EventHandler<R: RenderWorker>: Default {
     ) -> Result<(), CoreError> {
         Ok(())
     }
-    fn on_touchpad_pressure<S>(
+    fn on_touchpad_pressure<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,
@@ -225,7 +225,7 @@ pub trait EventHandler<R: RenderWorker>: Default {
     fn on_touch(&mut self, _: &mut R, _: &mut Worker, _: Touch) -> Result<(), CoreError> {
         Ok(())
     }
-    fn on_moved<S>(
+    fn on_moved<S: Sub>(
         &mut self,
         _: &mut R,
         _: &mut Worker,

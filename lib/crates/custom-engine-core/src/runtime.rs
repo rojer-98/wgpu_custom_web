@@ -1,4 +1,4 @@
-use std::{str::ParseBoolError, time::Duration};
+use std::time::Duration;
 
 use derive_more::Display;
 use log::{debug, error};
@@ -26,12 +26,6 @@ pub enum ImageFormat {
     Jpeg,
 }
 
-//#[derive(Debug)]
-//pub(crate) enum RuntimeKind<'a> {
-//    Winit(SurfaceProperties<'a>),
-//    Texture(String, ImageFormat),
-//}
-
 #[derive(Debug)]
 pub(crate) struct SurfaceProperties<'a> {
     pub config: wgpu::SurfaceConfiguration,
@@ -44,46 +38,10 @@ pub struct Runtime<'a, R: RenderWorker + 'a, H: EventHandler<R>> {
     pub(crate) instance: wgpu::Instance,
     pub(crate) power_preference: wgpu::PowerPreference,
 
-    //pub state: RuntimeState,
     worker: Option<Worker<'a>>,
     render: R,
     handler: H,
 }
-
-/*
-Event::WindowEvent {
-    ref event,
-    window_id,
-} if window_id == window.id() => {
-
-    match event {
-
-        // Mouse
-        // WindowEvent::CursorMoved { position, .. } => {
-        //     if app_state.click_state.is_pressed() {
-        //         let diff = (
-        //             position.x - app_state.cursor_position.x,
-        //             position.y - app_state.cursor_position.y,
-        //         );
-        //         r.move_to(&mut worker_surface, diff).unwrap();
-        //     }
-
-        //     app_state.cursor_position = *position;
-        // }
-        // WindowEvent::MouseInput { state, .. } => {
-        //     if state.is_pressed() {
-        //         app_state.clicked();
-
-        //         r.click(&mut worker_surface, &app_state).unwrap();
-        //     }
-
-        //     app_state.click_state = *state;
-        // }
-        _ => {}
-    }
-}
-
-*/
 
 impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> ApplicationHandler<E>
     for Runtime<'a, R, H>
@@ -99,6 +57,20 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> Applica
         event: WindowEvent,
     ) {
         let w = self.worker.as_mut().unwrap();
+
+        match self
+            .render
+            .update(w, &event, Duration::from_secs(1))
+            .and(self.render.render(w))
+        {
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
+            Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
+                event_loop.exit();
+            }
+            Err(e) => error!("{e}"),
+            _ => {}
+        }
 
         match event {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
@@ -127,21 +99,6 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> Applica
             WindowEvent::ThemeChanged(theme) => {
                 if let Err(e) = self.handler.on_theme(&mut self.render, w, theme) {
                     error!("{e}");
-                }
-            }
-            WindowEvent::RedrawRequested => {
-                match self
-                    .render
-                    .update(w, &event, Duration::from_secs(1))
-                    .and(self.render.render(w))
-                {
-                    Err(CoreError::SurfaceError(wgpu::SurfaceError::Lost)) => w.resize(),
-                    Err(CoreError::SurfaceError(wgpu::SurfaceError::Timeout)) => w.resize(),
-                    Err(CoreError::SurfaceError(wgpu::SurfaceError::OutOfMemory)) => {
-                        event_loop.exit();
-                    }
-                    Err(e) => error!("{e}"),
-                    _ => {}
                 }
             }
             WindowEvent::Occluded(occluded) => {
@@ -330,7 +287,7 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> Applica
                 }
             }
 
-            WindowEvent::ActivationTokenDone { .. } => (),
+            WindowEvent::ActivationTokenDone { .. } | WindowEvent::RedrawRequested => (),
         }
     }
 
@@ -375,8 +332,8 @@ impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
             limits,
             size,
             render: R::new(),
-            worker: None,
             handler: H::default(),
+            worker: None,
         }
     }
 

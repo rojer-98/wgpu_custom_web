@@ -239,11 +239,9 @@ impl<'a> Worker<'a> {
     }
 
     pub fn view_surface(&mut self) -> Result<wgpu::TextureView, CoreError> {
-        if self.view.is_none() {
-            self.view = Some(View::Surface(
-                self.surface_properties.surface.get_current_texture()?,
-            ));
-        }
+        self.view = Some(View::Surface(
+            self.surface_properties.surface.get_current_texture()?,
+        ));
 
         self.view()
     }
@@ -262,7 +260,7 @@ impl<'a> Worker<'a> {
                 debug!("Save texture to {save_path}");
                 i_b.save(save_path)?;
 
-                self.view = Some(View::Texture(t));
+                //self.view = Some(View::Texture(t));
             }
             _ => {}
         }

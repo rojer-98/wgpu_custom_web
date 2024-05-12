@@ -14,7 +14,7 @@ use winit::event_loop::EventLoopProxy;
 use custom_engine_core::runtime::Runtime;
 
 use crate::{
-    application::foreign::UserEvent,
+    application::{foreign::UserEvent, AppState},
     config::{EngineConfig, LoadConfig},
     workers::model::SimpleModelRender,
 };
@@ -87,8 +87,11 @@ impl EngineRunner {
     }
 
     pub async fn run(self) -> Result<()> {
-        EventLoop::<UserEvent>::with_user_event().build()?;
-        //.run_app(&mut Runtime::<SimpleModelRender>::new((1600, 1200)))?;
+        EventLoop::<UserEvent>::with_user_event()
+            .build()?
+            .run_app(&mut Runtime::<SimpleModelRender, AppState>::new((
+                1600, 1200,
+            )))?;
 
         Ok(())
     }
