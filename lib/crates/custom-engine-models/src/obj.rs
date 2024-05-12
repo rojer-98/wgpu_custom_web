@@ -23,55 +23,53 @@ pub struct FileTextures {
 
 impl FileTextures {
     pub fn new(current_path: &PathBuf, m: &Material) -> Self {
-        block_on(async {
-            let dissolve_texture = if let Some(t) = m.dissolve_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
-            let normal_texture = if let Some(t) = m.normal_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
-            let shininess_texture = if let Some(t) = m.shininess_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
-            let specular_texture = if let Some(t) = m.specular_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
-            let diffuse_texture = if let Some(t) = m.diffuse_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
-            let ambient_texture = if let Some(t) = m.ambient_texture.as_ref() {
-                Self::get_texture_data(current_path, t).await
-            } else {
-                None
-            };
+        let dissolve_texture = if let Some(t) = m.dissolve_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
+        let normal_texture = if let Some(t) = m.normal_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
+        let shininess_texture = if let Some(t) = m.shininess_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
+        let specular_texture = if let Some(t) = m.specular_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
+        let diffuse_texture = if let Some(t) = m.diffuse_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
+        let ambient_texture = if let Some(t) = m.ambient_texture.as_ref() {
+            Self::get_texture_data(current_path, t)
+        } else {
+            None
+        };
 
-            FileTextures {
-                dissolve_texture,
-                normal_texture,
-                shininess_texture,
-                specular_texture,
-                diffuse_texture,
-                ambient_texture,
-            }
-        })
+        FileTextures {
+            dissolve_texture,
+            normal_texture,
+            shininess_texture,
+            specular_texture,
+            diffuse_texture,
+            ambient_texture,
+        }
     }
 
-    async fn get_texture_data(current_path: &PathBuf, t: &str) -> Option<Vec<u8>> {
+    fn get_texture_data(current_path: &PathBuf, t: &str) -> Option<Vec<u8>> {
         let mut current_path = current_path.clone();
         current_path.push(t);
         let current_path = current_path.to_str().unwrap();
 
-        get_data(current_path).await
+        get_data(current_path)
     }
 }
 
@@ -94,7 +92,6 @@ impl ObjFile {
     pub fn new(file_name: &str) -> Result<Self> {
         block_on(async {
             let obj_data = get_data(file_name)
-                .await
                 .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
             let mut obj_reader = BufReader::new(Cursor::new(obj_data));
 
@@ -113,7 +110,7 @@ impl ObjFile {
                         let mut current_path = current_path.clone();
                         current_path.push(p);
 
-                        let mtl_data = get_data(current_path.to_str().unwrap()).await.unwrap();
+                        let mtl_data = get_data(current_path.to_str().unwrap()).unwrap();
 
                         return tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mtl_data)));
                     },

@@ -14,7 +14,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub async fn new(
+    pub fn new(
         g_mesh: &gltf::Mesh<'_>,
         root: &mut Root,
         document: &Document,
@@ -23,7 +23,7 @@ impl Mesh {
         let primitives: Vec<Primitive> = {
             let mut primitives = vec![];
             for p in g_mesh.primitives() {
-                match Primitive::new(&p, root, g_mesh, document, base_path).await {
+                match Primitive::new(&p, root, g_mesh, document, base_path) {
                     Ok(m) => primitives.push(m),
                     Err(e) => panic!("Mesh new: {e}"),
                 }

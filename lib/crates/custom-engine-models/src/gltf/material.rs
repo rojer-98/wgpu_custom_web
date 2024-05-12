@@ -53,7 +53,7 @@ pub struct Material {
 }
 
 impl Material {
-    pub async fn new(
+    pub fn new(
         gltf_material: &gltf::Material<'_>,
         root: &mut Root,
         document: &Document,
@@ -69,8 +69,7 @@ impl Material {
                     root,
                     document,
                     base_path,
-                )
-                .await,
+                ),
                 factor: pbr.base_color_factor().into(),
             })
         } else {
@@ -84,8 +83,7 @@ impl Material {
                     root,
                     document,
                     base_path,
-                )
-                .await,
+                ),
                 roughness_factor: pbr.roughness_factor(),
                 metallic_factor: pbr.metallic_factor(),
             })
@@ -100,8 +98,7 @@ impl Material {
                     root,
                     document,
                     base_path,
-                )
-                .await,
+                ),
                 scale: normal_texture.scale(),
             })
         } else {
@@ -116,8 +113,7 @@ impl Material {
                     root,
                     document,
                     base_path,
-                )
-                .await,
+                ),
                 strength: occ_texture.strength(),
             })
         } else {
@@ -132,8 +128,7 @@ impl Material {
                     root,
                     document,
                     base_path,
-                )
-                .await,
+                ),
                 factor: gltf_material.emissive_factor().into(),
             })
         } else {
@@ -158,7 +153,7 @@ impl Material {
     }
 }
 
-async fn load_texture(
+fn load_texture(
     g_texture: &gltf::Texture<'_>,
     tex_coord: u32,
     root: &mut Root,
@@ -173,7 +168,7 @@ async fn load_texture(
         return Rc::clone(tex);
     }
 
-    let texture = match Texture::new(g_texture, tex_coord, document, base_path).await {
+    let texture = match Texture::new(g_texture, tex_coord, document, base_path) {
         Ok(t) => t,
         Err(e) => panic!("Load texture: {e}"),
     };

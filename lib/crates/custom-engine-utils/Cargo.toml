@@ -12,6 +12,9 @@ log = "0.4.21"
 # Error
 anyhow = "1.0.82"
 
+# Async 
+pollster = "0.3.0"
+
 # Helpers
 cfg-if = "1"
 

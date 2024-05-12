@@ -20,7 +20,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub async fn new(
+    pub fn new(
         g_texture: &gltf::Texture<'_>,
         tex_coord: u32,
         document: &Document,
@@ -55,7 +55,6 @@ impl Texture {
                             .to_str()
                             .ok_or(anyhow!("Base path is wrong"))?,
                     )
-                    .await
                     .ok_or(anyhow!("Source URI `{uri}` data is not found"))?
                 }
             }
