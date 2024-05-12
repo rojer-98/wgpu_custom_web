@@ -347,6 +347,25 @@ impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
             ..
         } = self;
 
+        cfg_if::cfg_if! {
+          if #[cfg(target_arch = "wasm32")] {
+                use anyhow::anyhow;
+                use winit::platform::web::WindowExtWebSys;
+
+                web_sys::window()
+                    .and_then(|win| win.document())
+                    .and_then(|doc| {
+                        let dst = doc.get_element_by_id("wasm-body")?;
+                        let canvas = web_sys::Element::from(window.canvas()?);
+
+                        dst.append_child(&canvas).ok()?;
+
+                        Some(())
+                })
+                .ok_or(anyhow!("Web Sys window init"))?;
+            }
+        }
+
         let size = if cfg!(target_arch = "wasm32") {
             (
                 limits.max_texture_dimension_2d,
