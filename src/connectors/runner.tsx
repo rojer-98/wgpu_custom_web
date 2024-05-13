@@ -4,9 +4,9 @@ export function test_user_event_action() {
   user_event_action();
 }
 
-export default async function engine_runner() {
+export default function engine_runner() {
   try {
-    await run();
+     run();
   } catch (e) {
     console.log(e);
   }
