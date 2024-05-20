@@ -300,7 +300,7 @@ impl<'a, E: OnEvent + 'static, R: RenderWorker + 'a, H: EventHandler<R>> Applica
             )
             .unwrap();
 
-        if let Err(e) = block_on(async { self.worker_init(w).await }) {
+        if let Err(e) = self.worker_init(w) {
             error!("{e}");
             return;
         }
@@ -338,7 +338,7 @@ impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
     }
 
     // Create only in winit context
-    async fn worker_init(&mut self, window: Window) -> Result<(), CoreError> {
+    fn worker_init(&mut self, window: Window) -> Result<(), CoreError> {
         let Self {
             limits,
             instance,
@@ -346,6 +346,25 @@ impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
             worker,
             ..
         } = self;
+
+        cfg_if::cfg_if! {
+          if #[cfg(target_arch = "wasm32")] {
+                use anyhow::anyhow;
+                use winit::platform::web::WindowExtWebSys;
+
+                web_sys::window()
+                    .and_then(|win| win.document())
+                    .and_then(|doc| {
+                        let dst = doc.get_element_by_id("wasm-body")?;
+                        let canvas = web_sys::Element::from(window.canvas()?);
+
+                        dst.append_child(&canvas).ok()?;
+
+                        Some(())
+                })
+                .ok_or(anyhow!("Web Sys window init"))?;
+            }
+        }
 
         let size = if cfg!(target_arch = "wasm32") {
             (
@@ -363,14 +382,12 @@ impl<'a, R: RenderWorker + 'a, H: EventHandler<R>> Runtime<'a, R, H> {
         };
 
         let surface = instance.create_surface(window)?;
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: *power_preference,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .ok_or(CoreError::RequestAdapter)?;
+        let adapter = block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: *power_preference,
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        }))
+        .ok_or(CoreError::RequestAdapter)?;
         let adapter_info = adapter.get_info();
         let adapter_features = adapter.features();
 
@@ -382,16 +399,14 @@ Adapter:
     Limits: {limits:#?}"
         );
 
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: adapter_features,
-                    required_limits: limits.clone(),
-                    label: None,
-                },
-                None,
-            )
-            .await?;
+        let (device, queue) = block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                required_features: adapter_features,
+                required_limits: limits.clone(),
+                label: None,
+            },
+            None,
+        ))?;
 
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps

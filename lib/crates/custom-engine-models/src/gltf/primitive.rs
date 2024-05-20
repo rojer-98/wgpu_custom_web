@@ -47,7 +47,7 @@ pub struct Primitive {
 }
 
 impl Primitive {
-    pub async fn new<'a>(
+    pub fn new<'a>(
         gltf_primitive: &'a gltf::Primitive<'a>,
         root: &'a mut Root,
         mesh: &'a gltf::Mesh<'a>,
@@ -152,7 +152,7 @@ impl Primitive {
 
         if material.is_none() {
             // no else due to borrow checker madness
-            let mat = Rc::new(Material::new(&g_material, root, doc, base_path).await);
+            let mat = Rc::new(Material::new(&g_material, root, doc, base_path));
             root.materials.push(Rc::clone(&mat));
             material = Some(mat);
         };

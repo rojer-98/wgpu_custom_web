@@ -9,7 +9,6 @@ use custom_engine_core::{
     worker::Worker,
 };
 use custom_engine_derive::VertexLayout;
-use pollster::block_on;
 
 use crate::files::{ShaderFiles, ShaderKind};
 
@@ -190,9 +189,9 @@ impl RenderWorker for SimpleCustomRender {
         );
 
         w.render(r_p)?;
-        block_on(async { w.present().await })?;
+        w.present()?;
 
-        let out = block_on(async { w.read_storage_buffer::<Vertex>(s.id, "Storage").await })?;
+        let out = w.read_storage_buffer::<Vertex>(s.id, "Storage")?;
 
         w.update_storage(
             s.id,

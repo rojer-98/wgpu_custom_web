@@ -1,6 +1,5 @@
 use anyhow::Result;
 use instant::Duration;
-use pollster::block_on;
 use winit::event::WindowEvent;
 
 use custom_engine_components::{
@@ -61,13 +60,12 @@ impl RenderWorker for SimpleModelRender {
     where
         Self: Sized,
     {
-        let obj_file = block_on(async { ObjFile::new("./assets/models/cube/cube.obj").await })?;
-        let _gltf_file =
-            block_on(async { GltfFile::new("./assets/models/avocado/Avocado.glb").await })?;
+        let _obj_file = ObjFile::new("./assets/models/cube/cube.obj")?;
+        let gltf_file = GltfFile::new("./assets/models/avocado/Avocado.glb")?;
 
         let (m_id, m_builder) = w.create_model_id();
         let m = m_builder
-            .file(obj_file.into())
+            .file(gltf_file.into())
             .diffuse_texture_params(TextureParams {
                 view_binding: 0,
                 sampler_binding: 1,
@@ -369,7 +367,7 @@ impl RenderWorker for SimpleModelRender {
             );
 
         w.render(r_p)?;
-        block_on(async { w.present().await })?;
+        w.present()?;
 
         Ok(())
     }

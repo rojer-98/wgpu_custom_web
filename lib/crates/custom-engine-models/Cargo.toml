@@ -12,6 +12,9 @@ custom-engine-utils = { path = "../custom-engine-utils" }
 # Log 
 log = "0.4.21"
 
+# Async 
+pollster = "0.3.0"
+
 # Files 
 tobj = { version = "4.0", features = ["async"]}
 gltf = { version =  "1.4.0", features = [ 

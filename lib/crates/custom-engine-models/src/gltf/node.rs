@@ -21,7 +21,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub async fn new(
+    pub fn new(
         g_node: &gltf::Node<'_>,
         root: &mut Root,
         document: &Document,
@@ -40,7 +40,7 @@ impl Node {
             }
 
             if mesh.is_none() {
-                mesh = Some(Rc::new(Mesh::new(&g_mesh, root, document, base_path).await));
+                mesh = Some(Rc::new(Mesh::new(&g_mesh, root, document, base_path)));
 
                 root.meshes.push(mesh.clone().unwrap());
             }

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use cfg_if::cfg_if;
 
-pub async fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
-    let bin = load_binary(file_name.as_ref()).await;
+pub fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
+    let bin = load_binary(file_name.as_ref());
     if let Err(e) = bin {
         panic!("{e}");
     }
@@ -10,8 +10,8 @@ pub async fn get_data<P: AsRef<str>>(file_name: P) -> Option<Vec<u8>> {
     bin.ok()
 }
 
-pub async fn get_string<P: AsRef<str>>(file_name: P) -> Option<String> {
-    let bin = get_data(file_name).await?;
+pub fn get_string<P: AsRef<str>>(file_name: P) -> Option<String> {
+    let bin = get_data(file_name)?;
     let s = String::from_utf8(bin);
 
     if let Err(e) = s {
@@ -38,15 +38,21 @@ fn format_url(file_name: &str) -> Result<reqwest::Url> {
     Ok(base)
 }
 
-async fn load_binary(file_name: &str) -> Result<Vec<u8>> {
+fn load_binary(file_name: &str) -> Result<Vec<u8>> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
+            use pollster::block_on;
+
             let url = format_url(file_name)?;
-            let data = reqwest::get(url)
-                .await?
-                .bytes()
-                .await?
-                .to_vec();
+            let req  = block_on(async {
+                reqwest::get(url).await
+            })?;
+            let bytes = block_on(async {
+                req.bytes().await
+            })?;
+
+            let data = bytes.to_vec();
+
         } else {
             use std::fs::read;
 

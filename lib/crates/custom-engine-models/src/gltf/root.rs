@@ -15,14 +15,14 @@ pub struct Root {
 }
 
 impl Root {
-    pub async fn new(document: &Document, base_path: &Path) -> Self {
+    pub fn new(document: &Document, base_path: &Path) -> Self {
         let mut root = Root::default();
 
         root.nodes = {
             let mut nodes = vec![];
 
             for n in document.inner.nodes() {
-                nodes.push(Node::new(&n, &mut root, document, base_path).await);
+                nodes.push(Node::new(&n, &mut root, document, base_path));
             }
 
             nodes

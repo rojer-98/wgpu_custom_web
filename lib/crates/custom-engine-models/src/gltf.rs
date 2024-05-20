@@ -21,6 +21,7 @@ pub use texture::*;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
+use pollster::block_on;
 
 use custom_engine_utils::get_data;
 
@@ -33,10 +34,9 @@ pub struct GltfFile {
 }
 
 impl GltfFile {
-    pub async fn new(file_name: &str) -> Result<Self> {
+    pub fn new(file_name: &str) -> Result<Self> {
         let (inner, buffers, images) = if cfg!(target_arch = "wasm32") {
             let slice = get_data(file_name)
-                .await
                 .ok_or(anyhow!("File source of `{file_name}` is not availiable"))?;
             gltf::import_slice(slice)?
         } else {
@@ -55,7 +55,7 @@ impl GltfFile {
             .to_str()
             .unwrap()
             .to_string();
-        let root = Root::new(&doc, base_path).await;
+        let root = Root::new(&doc, base_path);
 
         Ok(Self { name, root, doc })
     }
