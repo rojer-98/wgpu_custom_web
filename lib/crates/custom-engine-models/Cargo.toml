@@ -10,14 +10,14 @@ edition = "2021"
 custom-engine-utils = { path = "../custom-engine-utils" }
 
 # Log 
-log = "0.4.21"
+log = "0.4.22"
 
 # Async 
 pollster = "0.3.0"
 
 # Files 
 tobj = { version = "4.0", features = ["async"]}
-gltf = { version =  "1.4.0", features = [ 
+gltf = { version =  "1.4.1", features = [ 
   "extras", 
   "extensions", 
   "KHR_lights_punctual",
@@ -38,20 +38,20 @@ cgmath = "0.18.0"
 collision = { git = "https://github.com/rojer-98/collision-rs.git" }
 
 # Error
-anyhow = "1.0.82"
+anyhow = "1.0.89"
 
 # Helpers
 base64 = "0.22.1"
-derive_more = "0.99.17"
+derive_more = "1.0.0"
 cfg-if = "1"
 derivative = "2.2.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]  
-reqwest = { version = "0.12.4" }
+reqwest = { version = "0.12.7" }
 getrandom = { version = "0.2", features = [ "js" ] }
-web-sys = { version = "0.3.69", features = [ 
+web-sys = { version = "0.3.70", features = [ 
   "Document",
   "Window",
   "Location",
 ]}
-wasm-bindgen = { version = "0.2.92" }
+wasm-bindgen = { version = "0.2.93" }
